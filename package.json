@@ -1,0 +1,23 @@
+{
+  "name": "minaelever",
+  "version": "1.0.0",
+  "description": "Här ska det fyllas på.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/magfal/MinaElever.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/magfal/MinaElever/issues"
+  },
+  "homepage": "https://github.com/magfal/MinaElever#readme",
+  "dependencies": {
+    "bootstrap": "^5.3.8"
+  }
+}
