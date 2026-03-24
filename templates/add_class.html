@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Skapa Klass{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card p-4 shadow-sm border-primary">
+            <h2 class="text-primary mb-3">Skapa ny klass</h2>
+            <p class="text-muted">Ange namnet på klassen (t.ex. "9A" eller "Webbutveckling 1").</p>
+            
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Klassens namn</label>
+                    <input type="text" name="name" class="form-control form-control-lg" placeholder="Namn..." required autofocus>
+                </div>
+                
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">Spara klass</button>
+                </div>
+            </form>
+            
+            <div class="mt-3 text-center">
+                <a href="/" class="text-decoration-none text-secondary">← Tillbaka</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Startsida{% endblock %}
+
+{% block content %}
+<h2>{{assignment.title}}</h2>
+<p>{{assignment.question}}</p>
+<form method="post">
+{% if assignment.type == "text" or assignment.type == "math" %}
+    <textarea name="text"></textarea>
+{% endif %}
+
+{% if assignment.type == "slider" %}
+    <input type="range" name="slider" min="0" max="100">
+{% endif %}
+
+{% if assignment.type == "mcq" %}
+    {% for c in choices %}
+        <input type="radio"
+            name="choice"
+            value="{{c.id}}">
+            {{c.text}}
+            <br>
+    {% endfor %}
+{% endif %}
+
+<button type="submit">
+    Submit
+</button>
+</form>
+
+{% endblock %}
