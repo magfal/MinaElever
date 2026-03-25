@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Startsida{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card p-4 shadow-sm">
+            <h2 class="mb-4 text-primary">Lägg till ny elev</h2>
+            
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="student_list">Klistra in namn (ett per rad):</label>
+                    <textarea 
+                    name="student_list" 
+                    id="student_list" 
+                    rows="5" 
+                    class="form-control" 
+                    style="white-space: pre-wrap; overflow-y: scroll;"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Klass</label>
+                    <select name="group_id" class="form-select" required>
+                        <option value="">Välj grupp...</option>
+                        {% for group in groups %}
+                        <option value="{{ group.id }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Spara elev</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

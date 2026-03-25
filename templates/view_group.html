@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Elever i {{ group.name }}</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Namn</th>
+            <th>Inloggningskod</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for student in group.students %}
+        <tr>
+            <td>{{ student.name }}</td>
+            <td><code>{{ student.login_code }}</code></td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="3">Inga elever i den här gruppen än.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<hr>
+<a href="{{ url_for('add_students') }}" class="btn btn-secondary">Lägg till fler elever</a>
+
+{% endblock %}

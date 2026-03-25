@@ -1,11 +1,20 @@
 import os
+from sqlalchemy import select
 from flask_sqlalchemy import SQLAlchemy
-from flask import Flask, render_template, request, redirect, session
+from sqlalchemy.exc import IntegrityError
+from flask import Flask, render_template, request, redirect, session, url_for, flash
 from datetime import datetime
-from models import db, Student, Assignment, Response, Choice, Class
+from models import db, Subject, Group, QuestionType, Question, Student, Choice, Assignment, Response
 from dotenv import load_dotenv
+import random
+import string
 
-# Laddar inställningar från en fil som heter .env (endast lokalt)
+def generate_student_code(length=6):
+    # Kombinerar små bokstäver och siffror
+    characters = string.ascii_lowercase + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
+
+# Laddar inställningar lokalt från .env
 load_dotenv()
 
 app = Flask(__name__)
@@ -19,30 +28,85 @@ app.config['SECRET_KEY'] = 'en-valfri-hemlig-text-sträng'
 
 db.init_app(app)
 
-with app.app_context():
-    db.create_all()
+@app.cli.command("create-db")
+def create_db():
+    """Skapar databasen och tabellerna genom att köra "flask create-db" i terminalen."""
+    with app.app_context():
+        db.create_all()
+        print("Databasen är skapad!")
 
 @app.route('/')
 def hello():
     return render_template("index.html")
 
-@app.route("/admin/add_class", methods=["GET", "POST"])
-def add_class():
+@app.route("/admin/add_group", methods=["GET", "POST"])
+def add_group():
     if request.method == "POST":
-        class_name = request.form.get("name")
-        
-        if class_name:
-            # Skapa det nya klass-objektet
-            new_class = Class(name=class_name)
-            
+        group_name = request.form.get("name")
+        if not group_name:
+            return "Gruppnamn saknas!", 400
+        new_group = Group(name=group_name)
+        if group_name:
+            new_group = Group(name=group_name)          
             try:
-                db.session.add(new_class)
+                db.session.add(new_group)
                 db.session.commit()
-                return redirect("/admin/add_student") # Gå direkt till att lägga till elever!
+                flash(f'Gruppen "{group_name}" har skapats!', 'success')
+                return redirect(url_for('add_students'))
+            except IntegrityError:
+                db.session.rollback()
+                flash(f'Gruppen "{group_name}" finns redan!', 'error')
+                return redirect(url_for('add_group'))
             except Exception as e:
                 db.session.rollback()
-                return f"Kunde inte skapa klassen: {e}"              
-    return render_template("add_class.html")
+                flash(f"Ett oväntat fel uppstod: {e}", 'error')
+                return redirect(url_for('add_group'))
+    return render_template("add_group.html")
+
+@app.route('/admin/add_students', methods=["GET","POST"])
+def add_students():
+    if request.method == "POST":
+        raw_data = request.form.get('student_list')
+        group_id = request.form.get('group_id')   
+        if not raw_data:
+            flash("Listan var tom!", "error")
+            return redirect(url_for('add_students'))
+        # Dela upp texten vid varje radbrytning och rensa bort tomma rader
+        student_names = [name.strip() for name in raw_data.split('\n') if name.strip()]   
+        added_count = 0
+        errors = 0
+        for name in student_names:
+            # Skapa en unik kod för varje elev
+            code = generate_student_code()
+            # Skapa elev-objektet (anpassa efter din modell)
+            new_student = Student(
+                name=name, 
+                login_code=code, 
+                group_id=group_id
+            )
+            try:
+                db.session.add(new_student)
+                db.session.commit()
+                added_count += 1
+            except IntegrityError:
+                db.session.rollback()
+                errors += 1
+        flash(f"Klart! {added_count} elever skapades.", "success")
+        if errors > 0:
+            flash(f"{errors} elever kunde inte läggas till (kanske dubbletter).", "warning")        
+        return redirect(url_for('view_group', group_id=group_id))
+    groups = db.session.execute(db.select(Group)).scalars().all()
+    return render_template("add_students.html", groups=groups)
+
+@app.route('/admin/view_group/<int:group_id>')
+def view_group(group_id):
+    # Hämta gruppen, eller kasta en 404-sida om den inte finns
+    group_query = select(Group).where(Group.id == group_id)
+    group = db.session.execute(group_query).scalar_one_or_none()
+    # Här hämtar vi eleverna. Om du har definierat en relation i din modell 
+    # (t.ex. students: Mapped[List["Student"]] = relationship(back_populates="group"))
+    # så kan du bara använda group.students i din template.
+    return render_template('view_group.html', group=group)
 
 @app.route("/admin/add_student", methods=["GET", "POST"])
 def add_student():
@@ -50,13 +114,13 @@ def add_student():
         # Hämta data från formuläret
         name = request.form.get("name")
         login_code = request.form.get("login_code")
-        class_id = request.form.get("class_id")
+        group_id = request.form.get("group_id")
 
         # Skapa ett nytt student-objekt (Modern syntax)
         new_student = Student(
             name=name,
             login_code=login_code,
-            class_id=int(class_id)
+            group_id=int(group_id)
         )
 
         try:
@@ -67,9 +131,9 @@ def add_student():
             db.session.rollback() # Om något går fel (t.ex. dubblett av login_code)
             return f"Ett fel uppstod: {e}"
 
-    # Om det är GET: hämta alla klasser så vi kan välja en i en dropdown
-    classes = db.session.execute(db.select(Class)).scalars().all()
-    return render_template("add_student.html", classes=classes)
+    # Om det är GET: hämta alla grupper så vi kan välja en i en dropdown
+    groups = db.session.execute(db.select(Group)).scalars().all()
+    return render_template("add_student.html", groups=groups)
 
 @app.route("/index")
 def index():
