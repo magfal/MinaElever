@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0">Tilldela fråga till grupp</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Välj fråga från biblioteket</label>
+                    <select name="question_id" class="form-select" required>
+                        <option value="" disabled selected>Välj en fråga...</option>
+                        {% for q in questions %}
+                            <option value="{{ q.id }}">{{ q.prompt[:60] }}...</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Välj grupp</label>
+                    <select name="group_id" class="form-select" required>
+                        <option value="" disabled selected>Vilken grupp ska göra uppgiften?</option>
+                        {% for g in groups %}
+                            <option value="{{ g.id }}">{{ g.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Startdatum och tid</label>
+                        <input type="datetime-local" name="start_time" class="form-control" required>
+                        <div class="form-text">När blir frågan synlig för studenterna?</div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Slutdatum och tid</label>
+                        <input type="datetime-local" name="end_time" class="form-control" required>
+                        <div class="form-text">Deadline för inlämning.</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 d-grid">
+                    <button type="submit" class="btn btn-success btn-lg">Skapa Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

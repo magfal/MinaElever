@@ -3,14 +3,19 @@
 {% block title %}Startsida{% endblock %}
 
 {% block content %}
-<div class="p-5 mb-4 bg-white rounded-3 border">
-    <h2>Hej {{student.name}}</h2>
-    <h3>Uppgifter</h3>
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white">
+            <h4 class="mb-0">Inloggad som {{ student.name }}</h4>
+        </div>
+    <div class="card-header bg-light text-white"></div>
+        <h5>Uppgifter</h5>
+    </div>
     <ul>
     {% for a in assignments %}
         <li>
             <a href="/assignment/{{a.id}}">
-                {{a.title}}
+                {{a.question_id}}
             </a>
         </li>
     {% endfor %}

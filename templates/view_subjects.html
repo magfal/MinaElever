@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Ämnen</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Ämnen</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for subject in subjects %}
+        <tr>
+            <td>{{ subject.name }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="3">Inga ämnen skapade än.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<hr>
+<a href="{{ url_for('add_subject') }}" class="btn btn-secondary">Lägg till nytt ämne</a>
+
+{% endblock %}

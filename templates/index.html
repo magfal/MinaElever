@@ -3,26 +3,14 @@
 {% block title %}Startsida{% endblock %}
 
 {% block content %}
+<h2>{{ group.name }}</h2>
+
 <div class="p-5 mb-4 bg-white rounded-3 border">
     <div class="container-fluid py-5">
-        <h1 class="display-5 fw-bold text-primary">Välkommen till Flask!</h1>
-        <p class="col-md-8 fs-4">Det här exemplet använder Bootstrap 5 direkt via CDN. Det är snabbt, smidigt och du slipper gamla utdaterade paket.</p>
-        <button class="btn btn-success btn-lg" type="button">En snygg knapp</button>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-4">
-        <div class="card p-3">
-            <h3>Kort 1</h3>
-            <p>Bootstrap gör det enkelt att bygga kolumner.</p>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card p-3">
-            <h3>Kort 2</h3>
-            <p>Detta är helt responsivt.</p>
-        </div>
+        <form method="POST">
+            <input name="code" placeholder="login code">
+            <button class="btn btn-success btn-lg" type="button">Logga in</button>
+        </form>
     </div>
 </div>
 {% endblock %}

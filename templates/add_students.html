@@ -6,8 +6,9 @@
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card p-4 shadow-sm">
-            <h2 class="mb-4 text-primary">Lägg till ny elev</h2>
-            
+            <h2 class="mb-4 text-primary">Lägg till ny elev i grupp</h2>
+            <p class="mb-4 text-primary">Loginkod genereras automatiskt</p>
+
             <form method="POST">
                 <div class="mb-3">
                     <label for="student_list">Klistra in namn (ett per rad):</label>
@@ -19,7 +20,7 @@
                     style="white-space: pre-wrap; overflow-y: scroll;"></textarea>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Klass</label>
+                    <label class="form-label">Grupp</label>
                     <select name="group_id" class="form-select" required>
                         <option value="">Välj grupp...</option>
                         {% for group in groups %}

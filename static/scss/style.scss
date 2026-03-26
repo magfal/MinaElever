@@ -1,8 +1,10 @@
+// Kör kommandet nedan i terminalen för att uppdaterar css.
+// sass --watch static/scss:static/css --load-path=node_modules/bootstrap/scss --quiet-deps
 // 1. IMPORT AV GOOGLE FONTS (Om du vill ha 'Inter' som du nämnde)
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap');
 
 // 2. VARIABEL-OVERRIDES (Ändra Bootstraps själ innan den föds)
-$primary: #4e73df;       // En proffsig blå (eller välj din favorit)
+$primary: #187513;       // En proffsig blå (eller välj din favorit)
 $success: #1cc88a;       // En fräsch grön för din "Snygga knapp"
 $dark:    #2c3e50;       // En djupare mörkgrå för navbaren
 $body-bg: #f8f9fc;       // Väldigt ljusgrå bakgrund för hela sidan

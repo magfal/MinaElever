@@ -27,7 +27,7 @@ class Group(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True)
     # Relationer
-    students: Mapped[List["Student"]] = relationship(back_populates="group")
+    students: Mapped[List["Student"]] = relationship(back_populates="group", order_by="Student.name")
     assignments: Mapped[List["Assignment"]] = relationship(back_populates="group")
 
 question_tag_association = Table(
@@ -67,9 +67,9 @@ class Tag(Base):
 
 class Student(db.Model):
     __tablename__ = "students"
-    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id"))
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id"))
+    name: Mapped[str] = mapped_column(String(100))
     login_code: Mapped[str] = mapped_column(String(20), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     # Relationer

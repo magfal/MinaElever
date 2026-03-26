@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Frågor</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Frågor</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for question in questions %}
+        <tr>
+            <td>{{ question.prompt }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="3">Inga frågor skapade än.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<hr>
+<a href="{{ url_for('add_question') }}" class="btn btn-secondary">Lägg till ny fråga</a>
+
+{% endblock %}
