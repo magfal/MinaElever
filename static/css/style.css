@@ -11887,4 +11887,58 @@ textarea.form-control-lg {
   border-bottom: 3px solid #187513;
 }
 
+.autocomplete-box {
+  position: absolute;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.autocomplete-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.autocomplete-item:hover {
+  background: #f1f3f5;
+}
+
+#questionsTable td, #questionsTable th {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+#questionsTable td:nth-child(1) {
+  white-space: normal;
+  max-width: 350px;
+}
+#questionsTable .form-select-sm {
+  padding: 2px 6px;
+}
+
+.editable {
+  cursor: text;
+  transition: background-color 0.2s ease;
+}
+.editable:focus {
+  outline: none;
+  background-color: #fff8d6;
+}
+
+.editable-select {
+  min-width: 140px;
+}
+
+.tag-input {
+  min-width: 200px;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
 /*# sourceMappingURL=style.css.map */

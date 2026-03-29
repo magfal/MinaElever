@@ -1,0 +1,17 @@
+.editable {
+    cursor: text;
+    transition: background-color 0.2s ease;
+
+    &:focus {
+        outline: none;
+        background-color: #fff8d6; // ljusgul highlight
+    }
+}
+
+.editable-select {
+    min-width: 140px;
+}
+
+.tag-input {
+    min-width: 200px;
+}

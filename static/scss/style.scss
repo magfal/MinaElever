@@ -1,23 +1,21 @@
 // Kör kommandet nedan i terminalen för att uppdaterar css.
 // sass --watch static/scss:static/css --load-path=node_modules/bootstrap/scss --quiet-deps
-// 1. IMPORT AV GOOGLE FONTS (Om du vill ha 'Inter' som du nämnde)
+
+// 1. Google Fonts
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap');
 
-// 2. VARIABEL-OVERRIDES (Ändra Bootstraps själ innan den föds)
-$primary: #187513;       // En proffsig blå (eller välj din favorit)
-$success: #1cc88a;       // En fräsch grön för din "Snygga knapp"
-$dark:    #2c3e50;       // En djupare mörkgrå för navbaren
-$body-bg: #f8f9fc;       // Väldigt ljusgrå bakgrund för hela sidan
+// 2. Bootstrap overrides
+$primary: #187513;
+$success: #1cc88a;
+$dark:    #2c3e50;
+$body-bg: #f8f9fc;
 
 $font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
 
-// 3. IMPORT AV BOOTSTRAP
-// Eftersom du kör --load-path=node_modules/bootstrap/scss räcker detta:
+// 3. Import Bootstrap
 @import "bootstrap";
 
-// 4. DIN EGEN DESIGN (Custom CSS)
-
-// Snygga till den stora välkomstboxen utan att ändra HTML
+// 4. Din egen design
 .bg-white.border.rounded-3 {
     box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
     transition: border-color 0.3s ease;
@@ -27,7 +25,6 @@ $font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
     }
 }
 
-// Skapa en klass för korten så de ser mer moderna ut
 .card {
     border: none;
     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
@@ -45,7 +42,12 @@ $font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
     }
 }
 
-// Snygga till navbaren
 .navbar {
     border-bottom: 3px solid $primary;
 }
+
+// 5. Importera dina nya komponenter
+@import "autocomplete";
+@import "tables";
+@import "forms";
+@import "layout";       

@@ -1,0 +1,15 @@
+#questionsTable {
+    td, th {
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    td:nth-child(1) {
+        white-space: normal; // prompt får brytas
+        max-width: 350px;
+    }
+
+    .form-select-sm {
+        padding: 2px 6px;
+    }
+}

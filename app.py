@@ -1,13 +1,20 @@
+# starta genom att i terminalen köra 
+# sass --watch static/scss:static/css --load-path=node_modules/bootstrap/scss --quiet-deps
+# python app.py
+
 import os
 from sqlalchemy import select, and_
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
-from flask import Flask, render_template, request, redirect, session, url_for, flash
-from datetime import datetime, timezone
-from models import db, Subject, Group, QuestionType, Question, Student, Choice, Assignment, Response
+from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify
+from datetime import datetime, timedelta, timezone
+from models import db, Subject, Group, QuestionType, Question, Student, Choice, Assignment, Tag, Response
 from dotenv import load_dotenv
 import random
 import string
+from sqlalchemy import or_
+from rapidfuzz import fuzz
+
 
 # Genererar en unik kod för varje elev (för inloggning)
 def generate_student_code(length=6):
@@ -168,70 +175,164 @@ def view_subjects():
     subjects = db.session.scalars(select(Subject).order_by(Subject.name)).all()
     return render_template('view_subjects.html', subjects=subjects)
 
-@app.route("/admin/add_question", methods=["GET", "POST"])
-def add_question():
-    # Hämta ämnen (subjects) för dropdownen
-    subjects = db.session.scalars(select(Subject).order_by(Subject.name)).all()
-    if request.method == "POST":
-        prompt = request.form.get("prompt")
-        subject_id = request.form.get("subject_id")
-        q_type_name = request.form.get("question_type")        
-        if prompt and subject_id and q_type_name:
-            try:
-                # Konvertera strängen från formuläret till ett Enum-objekt
-                selected_type = QuestionType[q_type_name]               
-                new_question = Question(
-                    prompt=prompt,
-                    subject_id=int(subject_id),
-                    question_type=selected_type
-                )
-                db.session.add(new_question)
-                db.session.commit()
-                flash("Ny fråga har skapats!", "success")
-                return redirect(url_for("add_question"))
-            except Exception as e:
-                db.session.rollback()
-                flash(f"Ett fel uppstod: {str(e)}", "danger")
-    return render_template("add_question.html", 
-                           subjects=subjects, 
-                           QuestionType=QuestionType)
-
 @app.route("/admin/view_questions")
 def view_questions():
-    questions = db.session.scalars(select(Question).order_by(Question.id)).all()
-    return render_template('view_questions.html', questions=questions)
+    questions = db.session.scalars(
+        select(Question).order_by(Question.id)
+    ).all()
 
-@app.route("/admin/add_assignment", methods=["GET", "POST"])
+    subjects = db.session.scalars(
+        select(Subject).order_by(Subject.name)
+    ).all()
+
+    # Enum-lista
+    question_types = list(QuestionType)
+
+    return render_template(
+        "view_questions.html",
+        questions=questions,
+        subjects=subjects,
+        question_types=question_types
+    )
+
+@app.route("/admin/update_question", methods=["POST"])
+def update_question():
+    data = request.json
+    q = db.session.get(Question, data["id"])
+    field = data["field"]
+    value = data["value"]
+    if field == "question_type":
+        value = QuestionType[value]
+    setattr(q, field, value)
+    db.session.commit()
+    return {"success": True}
+
+@app.route("/admin/update_tags", methods=["POST"])
+def update_tags():
+    data = request.json
+    q = db.session.get(Question, data["id"])
+
+    tag_names = [t.strip() for t in data["tags"].split(",") if t.strip()]
+
+    # Rensa gamla taggar
+    q.tags.clear()
+
+    # Lägg till nya (skapa om de inte finns)
+    for name in tag_names:
+        tag = Tag.query.filter_by(name=name).first()
+        if not tag:
+            tag = Tag(name=name)
+            db.session.add(tag)
+        q.tags.append(tag)
+
+    db.session.commit()
+    return {"success": True}
+
+@app.route("/admin/tag_suggest")
+def tag_suggest():
+    text = request.args.get("text", "")
+    tags = Tag.query.filter(Tag.name.ilike(f"%{text}%")).all()
+    return jsonify([t.name for t in tags])
+
+@app.route("/admin/add_assignment")
 def add_assignment():
-    questions = db.session.scalars(select(Question).order_by(Question.prompt)).all()
-    groups = db.session.scalars(select(Group).order_by(Group.name)).all()
-    if request.method == "POST":
-        question_id = request.form.get("question_id")
-        group_id = request.form.get("group_id")
-        start_str = request.form.get("start_time")
-        end_str = request.form.get("end_time")
-        if not all([question_id, group_id, start_str, end_str]):
-            flash("Alla fält måste fyllas i!", "warning")
-        else:
-            try:
-                start_dt = datetime.strptime(start_str, '%Y-%m-%dT%H:%M').replace(tzinfo=timezone.utc)
-                end_dt = datetime.strptime(end_str, '%Y-%m-%dT%H:%M').replace(tzinfo=timezone.utc)
-                new_assignment = Assignment(
-                    question_id=int(question_id),
-                    group_id=int(group_id),
-                    start_time=start_dt,
-                    end_time=end_dt
-                    )
-                db.session.add(new_assignment)
-                db.session.commit()
-                flash("Uppgiften har tilldelats gruppen!", "success")
-                return redirect(url_for('view_questions')) # Eller var du vill skicka dem
-            except Exception as e:
-                db.session.rollback()
-                flash(f"Ett fel uppstod: {str(e)}", "danger")
-    return render_template("add_assignment.html", 
-                           questions=questions, 
-                           groups=groups)
+    question_id = request.args.get("question_id", type=int)
+
+    subjects = db.session.scalars(select(Subject)).all()
+    groups = db.session.scalars(select(Group)).all()
+
+    now = datetime.now().replace(second=0, microsecond=0)
+    one_hour_later = now + timedelta(hours=1)
+
+    selected_question = None
+    if question_id:
+        selected_question = db.session.get(Question, question_id)
+
+    question_types = [qt for qt in QuestionType]
+    
+    return render_template(
+        "add_assignment.html",
+        subjects=subjects,
+        groups=groups,
+        now=now.isoformat(),
+        one_hour_later=one_hour_later.isoformat(),
+        selected_question=selected_question,
+        question_types=question_types
+    )
+
+@app.route("/admin/search_questions")
+def search_questions():
+    text = request.args.get("text", "").strip()
+    if not text:
+        return jsonify([])
+
+    base_query = Question.query
+
+    db_matches = base_query.filter(
+        or_(
+            Question.prompt.ilike(f"%{text}%"),
+            Question.tags.any(Tag.name.ilike(f"%{text}%"))
+        )
+    ).all()
+
+    results = {q.id: {"id": q.id, "text": q.prompt, "subject_id": q.subject_id, "score": 100}
+               for q in db_matches}
+
+    all_questions = base_query.all()
+    for q in all_questions:
+        score = fuzz.partial_ratio(text.lower(), q.prompt.lower())
+        if score > 70:
+            results[q.id] = {"id": q.id, "text": q.prompt, "subject_id": q.subject_id, "score": score}
+
+    sorted_results = sorted(results.values(), key=lambda x: x["score"], reverse=True)
+
+    return jsonify(sorted_results)
+
+
+@app.route("/admin/add_assignment", methods=["POST"])
+def add_assignment_post():
+    subject_id = request.form.get("subject_id", type=int)
+    group_id = request.form.get("group_id", type=int)
+    start_time = request.form.get("start_time")
+    end_time = request.form.get("end_time")
+
+    selected_question_id = request.form.get("selected_question_id")
+    new_question_text = request.form.get("new_question_text")
+
+    # Question type (default TEXT)
+    qt_str = request.form.get("question_type") or "TEXT"
+    question_type = QuestionType[qt_str]
+
+    # 1. Skapa ny fråga
+    if selected_question_id == "" and new_question_text:
+        new_question = Question(
+            prompt=new_question_text,
+            subject_id=subject_id,
+            question_type=question_type,
+            created_at=datetime.now()
+        )
+        db.session.add(new_question)
+        db.session.commit()
+        question_id = new_question.id
+
+    # 2. Använd befintlig fråga
+    else:
+        question_id = int(selected_question_id)
+
+    # 3. Skapa assignment
+    assignment = Assignment(
+        question_id=question_id,
+        subject_id=subject_id,
+        group_id=group_id,
+        start_time=start_time,
+        end_time=end_time
+    )
+
+    db.session.add(assignment)
+    db.session.commit()
+
+    flash("Assignment skapades!", "success")
+    return redirect(url_for("view_assignments"))
 
 @app.route("/response/<int:id>", methods=["GET", "POST"])
 def response(id):

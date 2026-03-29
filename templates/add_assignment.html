@@ -1,28 +1,90 @@
 {% extends "base.html" %}
-
 {% block content %}
+
 <div class="container mt-4">
-    <div class="card shadow">
-        <div class="card-header bg-success text-white">
-            <h4 class="mb-0">Tilldela fråga till grupp</h4>
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white">
+            <h4 class="mb-0">Skapa ny uppgift</h4>
         </div>
+
         <div class="card-body">
-            <form method="POST">
-                
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Välj fråga från biblioteket</label>
-                    <select name="question_id" class="form-select" required>
-                        <option value="" disabled selected>Välj en fråga...</option>
-                        {% for q in questions %}
-                            <option value="{{ q.id }}">{{ q.prompt[:60] }}...</option>
-                        {% endfor %}
-                    </select>
-                </div>
+
+            <form id="assignmentForm" method="POST" action="/admin/add_assignment">
+
+                {% if selected_question %}
+                    <!-- ASSIGN-LÄGE -->
+                    <div class="alert alert-info mb-3">
+                        <strong>Förvald fråga:</strong> {{ selected_question.prompt }}
+                    </div>
+
+                    <input type="hidden" name="selected_question_id" value="{{ selected_question.id }}">
+                    <input type="hidden" name="new_question_text" value="">
+                    <input type="hidden" name="subject_id" value="{{ selected_question.subject_id }}">
+
+                    <!-- Question Type (låst) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Frågetyp</label>
+                        <select class="form-select" disabled>
+                            {% for qt in question_types %}
+                                <option value="{{ qt.name }}"
+                                    {% if qt.name == selected_question.question_type.name %}selected{% endif %}>
+                                    {{ qt.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="question_type" value="{{ selected_question.question_type.name }}">
+                    </div>
+
+                {% else %}
+                    <!-- NORMALT LÄGE -->
+
+                    <!-- ÄMNE -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ämne</label>
+                        <select name="subject_id" id="subjectSelect" class="form-select" required>
+                            <option value="" disabled selected>Välj ämne...</option>
+                            {% for s in subjects %}
+                                <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- FRÅGETYP -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Frågetyp</label>
+                        <select name="question_type" id="questionTypeSelect" class="form-select" required>
+                            {% for qt in question_types %}
+                                <option value="{{ qt.name }}">{{ qt.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- SÖKRUTA -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Sök efter fråga eller tagg</label>
+                        <input id="searchInput" type="text" class="form-control" placeholder="Skriv för att söka...">
+                    </div>
+
+                    <!-- LISTA MED FRÅGOR -->
+                    <div class="border rounded p-3 mb-4" style="max-height: 300px; overflow-y: auto;">
+                        <div id="questionList" class="list-group small">
+                            <div class="text-muted">Skriv i sökrutan för att visa frågor.</div>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="selected_question_id" id="selectedQuestionId">
+                    <input type="hidden" name="new_question_text" id="newQuestionText">
+                {% endif %}
+
+                <hr>
+
+                <!-- GRUPP + DATUM -->
+                <h5 class="fw-bold">Tilldela till grupp</h5>
 
                 <div class="mb-3">
                     <label class="form-label fw-bold">Välj grupp</label>
                     <select name="group_id" class="form-select" required>
-                        <option value="" disabled selected>Vilken grupp ska göra uppgiften?</option>
+                        <option value="" disabled selected>Välj grupp...</option>
                         {% for g in groups %}
                             <option value="{{ g.id }}">{{ g.name }}</option>
                         {% endfor %}
@@ -31,23 +93,80 @@
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Startdatum och tid</label>
-                        <input type="datetime-local" name="start_time" class="form-control" required>
-                        <div class="form-text">När blir frågan synlig för studenterna?</div>
+                        <label class="form-label fw-bold">Starttid</label>
+                        <input type="datetime-local" name="start_time" class="form-control" required value="{{ now }}">
                     </div>
 
                     <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Slutdatum och tid</label>
-                        <input type="datetime-local" name="end_time" class="form-control" required>
-                        <div class="form-text">Deadline för inlämning.</div>
+                        <label class="form-label fw-bold">Sluttid</label>
+                        <input type="datetime-local" name="end_time" class="form-control" required value="{{ one_hour_later }}">
                     </div>
                 </div>
 
-                <div class="mt-4 d-grid">
-                    <button type="submit" class="btn btn-success btn-lg">Skapa Assignment</button>
-                </div>
+                <button type="submit" class="btn btn-primary btn-lg mt-3">Skapa uppgift</button>
+
             </form>
         </div>
     </div>
 </div>
+
+{% if not selected_question %}
+<script>
+// Dynamisk sökning + fuzzy (söker i ALLA frågor)
+document.getElementById("searchInput").addEventListener("input", () => {
+    const text = document.getElementById("searchInput").value;
+
+    fetch(`/admin/search_questions?text=${encodeURIComponent(text)}`)
+        .then(res => res.json())
+        .then(data => {
+            const list = document.getElementById("questionList");
+            list.innerHTML = "";
+
+            if (data.length === 0) {
+                const newBtn = document.createElement("button");
+                newBtn.className = "list-group-item list-group-item-action text-success";
+                newBtn.textContent = `Skapa ny fråga: "${text}"`;
+                newBtn.onclick = () => {
+                    document.getElementById("selectedQuestionId").value = "";
+                    document.getElementById("newQuestionText").value = text;
+                };
+                list.appendChild(newBtn);
+                return;
+            }
+
+            data.forEach(q => {
+                const item = document.createElement("button");
+                item.className = "list-group-item list-group-item-action";
+                item.textContent = q.text;
+                item.onclick = () => {
+                    document.getElementById("selectedQuestionId").value = q.id;
+                    document.getElementById("newQuestionText").value = "";
+
+                    // välj ämne automatiskt
+                    document.getElementById("subjectSelect").value = q.subject_id;
+
+                    // välj frågetyp automatiskt
+                    document.getElementById("questionTypeSelect").value = q.question_type;
+
+                    document.querySelectorAll("#questionList button").forEach(b => b.classList.remove("active"));
+                    item.classList.add("active");
+                };
+                list.appendChild(item);
+            });
+
+            if (text.length > 3) {
+                const newBtn = document.createElement("button");
+                newBtn.className = "list-group-item list-group-item-action text-success";
+                newBtn.textContent = `Skapa ny fråga: "${text}"`;
+                newBtn.onclick = () => {
+                    document.getElementById("selectedQuestionId").value = "";
+                    document.getElementById("newQuestionText").value = text;
+                };
+                list.appendChild(newBtn);
+            }
+        });
+});
+</script>
+{% endif %}
+
 {% endblock %}

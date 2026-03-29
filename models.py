@@ -50,13 +50,13 @@ class Question(db.Model):
     subject_id: Mapped[int] = mapped_column(ForeignKey('subjects.id'))
     prompt: Mapped[str] = mapped_column(Text, unique=True)
     question_type: Mapped[QuestionType] = mapped_column(default=QuestionType.TEXT)
-    tags: Mapped[Optional[dict]] = mapped_column(JSON)
     extra_data: Mapped[Optional[dict]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))    
     # Relationer
     choices: Mapped[list["Choice"]] = relationship(back_populates="question")
     subject: Mapped["Subject"] = relationship(back_populates="questions")
     tags: Mapped[List["Tag"]] = relationship(secondary=question_tag_association, back_populates="questions")
+    assignments: Mapped[List["Assignment"]] = relationship(back_populates="question", cascade="all, delete-orphan")
 
 class Tag(Base):
     __tablename__ = "tags"
@@ -98,6 +98,7 @@ class Assignment(db.Model):
     # Relationer
     group: Mapped["Group"] = relationship(back_populates="assignments")
     responses: Mapped[List["Response"]] = relationship(back_populates="assignment")
+    question: Mapped["Question"] = relationship(back_populates="assignments")
 
 class Response(db.Model):
     __tablename__ = "responses"
