@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+<div class="container mt-4" x-data="questionManager()">
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h4>Frågehantering</h4>
+            <button @click="addNewQuestion()" class="btn btn-primary">Skapa ny fråga</button>
+        </div>
+
+        <div class="table-responsive p-3">
+            <table id="questionsTable" class="table table-hover align-middle" style="width:100%">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fråga</th>
+                        <th>Ämne</th>
+                        <th>Taggar</th>
+                        <th>Typ</th>
+                        <th>Skapad</th>
+                        <th>Åtgärd</th>
+                    </tr>
+                    <tr class="filter-row">
+                        <th><input type="text" class="form-control form-control-sm col-search" placeholder="Sök text..."></th>
+                        <th>
+                            <select class="form-select form-select-sm col-search">
+                                <option value="">Alla</option>
+                                {% for s in subjects %}<option value="{{ s.name }}">{{ s.name }}</option>{% endfor %}
+                            </select>
+                        </th>
+                        <th><input type="text" class="form-control form-control-sm col-search" placeholder="Sök tagg..."></th>
+                        <th>
+                            <select class="form-select form-select-sm col-search">
+                                <option value="">Alla</option>
+                                {% for qt in question_types %}<option value="{{ qt.name }}">{{ qt.name }}</option>{% endfor %}
+                            </select>
+                        </th>
+                        <th></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in questions %}
+                    <tr id="row-{{ q.id }}">
+                        <td>
+                            <span class="d-none">{{ q.prompt }}</span>
+                            <div contenteditable="true" 
+                                 class="p-2 border rounded bg-light"
+                                 @blur="saveField({{ q.id }}, 'prompt', $el.innerText)">
+                                {{ q.prompt }}
+                            </div>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm" @change="saveField({{ q.id }}, 'subject_id', $el.value)">
+                                {% for s in subjects %}
+                                <option value="{{ s.id }}" {% if s.id == q.subject_id %}selected{% endif %}>{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input class="tag-init" data-id="{{ q.id }}" value="{{ q.tags | map(attribute='name') | join(',') }}">
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm" @change="saveField({{ q.id }}, 'question_type', $el.value)">
+                                {% for qt in question_types %}
+                                <option value="{{ qt.name }}" {% if qt.name == q.question_type.name %}selected{% endif %}>{{ qt.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>{{ q.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{{ url_for('add_assignment', question_id=q.id) }}" class="btn btn-sm btn-outline-primary">Tilldela</a>
+                                <button class="btn btn-sm btn-outline-danger" @click="deleteQuestion({{ q.id }})">Radera</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// 1. ALPINE LOGIK (Spara till servern)
+function questionManager() {
+    return {
+        async saveField(id, field, value) {
+            console.log(`Sparar ${field} för ID ${id}...`);
+            await fetch('/admin/update_question', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id, field: field, value: value })
+            });
+        },
+        async saveTags(id, tags) {
+            await fetch('/admin/update_tags', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id, tags: tags })
+            });
+        },
+        addNewQuestion() {
+            // Här kan du antingen öppna en modal eller använda din gamla table.row.add-logik
+            // För enkelhetens skull i detta test:
+            alert("Använd din befintliga 'Skapa Ny'-knapps logik här!");
+        },
+        async deleteQuestion(id) {
+            if(confirm("Vill du radera frågan?")) {
+                const res = await fetch(`/admin/delete_question/${id}`, { method: 'POST' });
+                if(res.ok) location.reload();
+            }
+        }
+    }
+}
+
+// 2. DATATABLES & TAGIFY LOGIK
+$(document).ready(function() {
+    const table = $('#questionsTable').DataTable({
+        orderCellsTop: true, // Sortera på översta raden
+        pageLength: 25,
+        order: [[4, "desc"]],
+        language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/sv-SE.json' },
+        
+        // DETTA ÄR NYCKELN: Körs varje gång tabellen ritas om (sortering/sök)
+        drawCallback: function() {
+            $('.tag-init').each(function() {
+                // Om Tagify redan finns på detta element, gör inget
+                if (this._tagify) return;
+
+                const qId = $(this).data('id');
+                const tagify = new Tagify(this, {
+                    enforceWhitelist: false,
+                    dropdown: { enabled: 1, position: "text" }
+                });
+
+                // Spara när taggar ändras
+                tagify.on('change', e => {
+                    const val = tagify.value.map(t => t.value).join(',');
+                    // Hämta Alpine-komponenten manuellt och anropa spara
+                    const manager = Alpine.$data(document.querySelector('[x-data]'));
+                    manager.saveTags(qId, val);
+                });
+
+                // Förslag från servern
+                tagify.on('input', e => {
+                    fetch(`/admin/tag_suggest?text=${e.detail.value}`)
+                        .then(res => res.json())
+                        .then(list => tagify.whitelist = list);
+                });
+
+                this._tagify = tagify; // Flagga som klar
+            });
+        }
+    });
+
+    // Aktivera sökfälten i filter-raden
+    $('.col-search').on('keyup change', function() {
+        const colIdx = $(this).closest('th').index();
+        table.column(colIdx).search(this.value).draw();
+    });
+});
+</script>
+
+<style>
+    /* Fixa sorteringspilar */
+    #questionsTable thead th { position: relative; }
+    .filter-row th { padding: 8px !important; background-color: #f8f9fa; }
+    .tagify { border-radius: 4px; border: 1px solid #dee2e6; }
+    [contenteditable="true"]:focus { outline: 2px solid #0d6efd; background: white !important; }
+</style>
+
+{% endblock %}

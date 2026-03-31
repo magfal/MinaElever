@@ -131,14 +131,12 @@
 <script>
 $(document).ready(function() {
     let table; // Definiera variabeln högt upp
-
     // 1. FUNKTION FÖR ATT STARTA TAGIFY
     function initTagify(element) {
         // Kontrollera om elementet redan har Tagify ELLER om det redan finns en Tagify-box precis bredvid
         if (!element || element.tagify || $(element).parent().find('.tagify').length > 0) {
             return; 
         }
-
         const tagify = new Tagify(element, {
             enforceWhitelist: false,
             whitelist: [], 
