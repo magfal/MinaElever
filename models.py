@@ -7,13 +7,10 @@ from sqlalchemy import Column, Table, String, Integer, Text, ForeignKey, DateTim
 from sqlalchemy import JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-# 1. Definiera en bas-klass
 class Base(DeclarativeBase):
     pass
 
 db = SQLAlchemy(model_class=Base)
-
-# 2.  Modeller för tabellerna
 
 class Subject(db.Model):
     __tablename__ = "subjects"
@@ -22,13 +19,13 @@ class Subject(db.Model):
     # Relationer
     questions: Mapped[List["Question"]] = relationship(back_populates="subject")
 
-class Group(db.Model):
-    __tablename__ = "groups"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True)
-    # Relationer
-    students: Mapped[List["Student"]] = relationship(back_populates="group", order_by="Student.name")
-    assignments: Mapped[List["Assignment"]] = relationship(back_populates="group")
+class QuestionType(enum.Enum):
+    TEXT = "text"
+    SLIDER = "slider"
+    MULTIPLE_CHOICE = "multiple_choice"
+    SINGLE_CHOICE = "single_choice"
+    CSV_IMPORT = "csv_import"
+    OBSERVATION = "observation"
 
 question_tag_association = Table(
     "question_tag",
@@ -37,12 +34,12 @@ question_tag_association = Table(
     Column("tag_id", ForeignKey("tags.id"), primary_key=True),
 )
 
-class QuestionType(enum.Enum):
-    TEXT = "text"
-    SLIDER = "slider"
-    MULTIPLE_CHOICE = "multiple_choice"
-    CSV_IMPORT = "csv_import"
-    OBSERVATION = "observation"
+class Tag(Base):
+    __tablename__ = "tags"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), unique=True)
+    # Relationer
+    questions: Mapped[List["Question"]] = relationship(secondary=question_tag_association, back_populates="tags")
 
 class Question(db.Model):
     __tablename__ = 'questions'
@@ -53,17 +50,18 @@ class Question(db.Model):
     extra_data: Mapped[Optional[dict]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))    
     # Relationer
-    choices: Mapped[list["Choice"]] = relationship(back_populates="question")
     subject: Mapped["Subject"] = relationship(back_populates="questions")
+    choices: Mapped[list["Choice"]] = relationship(back_populates="question")
     tags: Mapped[List["Tag"]] = relationship(secondary=question_tag_association, back_populates="questions")
     assignments: Mapped[List["Assignment"]] = relationship(back_populates="question", cascade="all, delete-orphan")
 
-class Tag(Base):
-    __tablename__ = "tags"
+class Group(db.Model):
+    __tablename__ = "groups"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True)
     # Relationer
-    questions: Mapped[List["Question"]] = relationship(secondary=question_tag_association, back_populates="tags")
+    students: Mapped[List["Student"]] = relationship(back_populates="group", order_by="Student.name")
+    assignments: Mapped[List["Assignment"]] = relationship(back_populates="group")
 
 class Student(db.Model):
     __tablename__ = "students"
@@ -86,6 +84,7 @@ class Choice(db.Model):
     is_correct: Mapped[bool] = mapped_column(default=False)
     # Relationer
     question: Mapped["Question"] = relationship(back_populates="choices")
+    responses: Mapped[List["Response"]] = relationship(back_populates="choice")
 
 class Assignment(db.Model):
     __tablename__ = "assignments"
@@ -106,8 +105,9 @@ class Response(db.Model):
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id"))
     assignment_id: Mapped[int] = mapped_column(ForeignKey("assignments.id"))
     choice_id: Mapped[Optional[int]] = mapped_column(ForeignKey("choices.id"))
-    text_answer: Mapped[Optional[str]] = mapped_column(Text)
-    slider_value: Mapped[Optional[int]] = mapped_column(Integer)
+    text_ans: Mapped[Optional[str]] = mapped_column(Text)
+    numeric_ans: Mapped[Optional[int]] = mapped_column(Integer)
+    comment: Mapped[Optional[str]] = mapped_column(Text)
     extra_data: Mapped[Optional[dict]] = mapped_column(JSON)
     is_private: Mapped[bool] = mapped_column(default=False)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -116,3 +116,4 @@ class Response(db.Model):
     # Relationer
     student: Mapped["Student"] = relationship(back_populates="responses")
     assignment: Mapped["Assignment"] = relationship(back_populates="responses")
+    choice: Mapped["Choice"] = relationship(back_populates="responses")

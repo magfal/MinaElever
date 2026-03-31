@@ -1,19 +1,18 @@
-# starta genom att i terminalen köra 
+# starta programmet genom att i terminalen köra 
 # sass --watch static/scss:static/css --load-path=node_modules/bootstrap/scss --quiet-deps
 # python app.py
 
 import os
-from sqlalchemy import select, and_
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.exc import IntegrityError
-from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify
-from datetime import datetime, timedelta, timezone
-from models import db, Subject, Group, QuestionType, Question, Student, Choice, Assignment, Tag, Response
-from dotenv import load_dotenv
 import random
 import string
-from sqlalchemy import or_
+from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
 from rapidfuzz import fuzz
+from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify
+from sqlalchemy import select, and_, or_
+from sqlalchemy.exc import IntegrityError
+from flask_sqlalchemy import SQLAlchemy
+from models import db, Subject, Group, QuestionType, Question, Student, Choice, Assignment, Tag, Response
 
 
 # Genererar en unik kod för varje elev (för inloggning)
@@ -44,8 +43,14 @@ def create_db():
         db.create_all()
         print("Databasen är skapad!")
 
-# Här börjar våra routes (webbsidor)
+# Hjälpfunktion för att hämta eller skapa taggar
+def get_or_create_tag(tag_name):
+    tag = db.session.execute(db.select(Tag).filter_by(name=tag_name)).scalar_one_or_none()
+    if not tag:
+        tag = Tag(name=tag_name)
+    return tag
 
+# Här börjar våra routes
 @app.route("/")
 def index():
     if "student_id" not in session:
@@ -63,14 +68,12 @@ def index():
         )
     )
     assignments = db.session.scalars(query).all()  
-    print(assignments)
     return render_template("dashboard.html", student=student, assignments=assignments)
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         code = request.form.get("code")
-        print(code)
         query = select(Student).where(Student.login_code == code)
         student = db.session.scalar(query)
         if student:
@@ -110,14 +113,11 @@ def add_students():
         if not raw_data:
             flash("Listan var tom!", "error")
             return redirect(url_for('add_students'))
-        # Dela upp texten vid varje radbrytning och rensa bort tomma rader
         student_names = [name.strip() for name in raw_data.split('\n') if name.strip()]   
         added_count = 0
         errors = 0
         for name in student_names:
-            # Skapa en unik kod för varje elev
             code = generate_student_code()
-            # Skapa elev-objektet (anpassa efter din modell)
             new_student = Student(
                 name=name, 
                 login_code=code, 
@@ -175,25 +175,61 @@ def view_subjects():
     subjects = db.session.scalars(select(Subject).order_by(Subject.name)).all()
     return render_template('view_subjects.html', subjects=subjects)
 
-@app.route("/admin/view_questions")
-def view_questions():
-    questions = db.session.scalars(
-        select(Question).order_by(Question.id)
-    ).all()
-
-    subjects = db.session.scalars(
-        select(Subject).order_by(Subject.name)
-    ).all()
-
-    # Enum-lista
+@app.route("/admin/questions")
+def questions():
+    query = select(Question).order_by(Question.id)
+    questions = db.session.scalars(query).all()
+    query = select(Subject).order_by(Subject.name)
+    subjects = db.session.scalars(query).all()
     question_types = list(QuestionType)
-
     return render_template(
-        "view_questions.html",
+        "questions.html",
         questions=questions,
         subjects=subjects,
         question_types=question_types
     )
+
+@app.route("/admin/create_question", methods=["POST"])
+def create_question():
+    data = request.json
+    prompt = data.get('prompt')
+    subject_id = data.get('subject_id')
+    question_type_name = data.get('question_type')
+    tags_string = data.get('tags', '') # Hämtar t.ex. "matte,ekvation"
+
+    try:
+        # 1. Skapa frågan
+        new_q = Question(
+            prompt=prompt,
+            subject_id=subject_id,
+            question_type=question_type_name
+        )
+        
+        # 2. Bearbeta taggar
+        if tags_string:
+            # Gör om strängen till en lista: ["matte", "ekvation"]
+            tag_names = [t.strip() for t in tags_string.split(',') if t.strip()]
+            
+            for name in tag_names:
+                # Sök efter befintlig tagg med db.session.get eller query
+                tag = db.session.query(Tag).filter_by(name=name).first()
+                if not tag:
+                    tag = Tag(name=name)
+                    db.session.add(tag)
+                
+                # Lägg till taggen i frågans tagg-lista
+                new_q.tags.append(tag)
+
+        # 3. Spara allt i ett svep
+        db.session.add(new_q)
+        db.session.commit()
+        
+        return jsonify({"status": "ok", "id": new_q.id})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating question: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 @app.route("/admin/update_question", methods=["POST"])
 def update_question():
@@ -210,28 +246,50 @@ def update_question():
 @app.route("/admin/update_tags", methods=["POST"])
 def update_tags():
     data = request.json
-    q = db.session.get(Question, data["id"])
+    question_id = data.get('id')
+    tags_string = data.get('tags', '')
 
-    tag_names = [t.strip() for t in data["tags"].split(",") if t.strip()]
+    # Modern syntax istället för Question.query.get()
+    question = db.session.get(Question, question_id)
+    
+    if not question:
+        return {"success": False, "error": "Frågan hittades inte"}, 404
 
-    # Rensa gamla taggar
-    q.tags.clear()
+    # Rensa befintliga kopplingar
+    question.tags = []
 
-    # Lägg till nya (skapa om de inte finns)
-    for name in tag_names:
-        tag = Tag.query.filter_by(name=name).first()
-        if not tag:
-            tag = Tag(name=name)
-            db.session.add(tag)
-        q.tags.append(tag)
+    if tags_string:
+        # Dela upp strängen till en lista av namn
+        tag_names = [t.strip() for t in tags_string.split(',') if t.strip()]
+        
+        for name in tag_names:
+            # Här använder vi db.session.query istället för Tag.query
+            tag = db.session.query(Tag).filter_by(name=name).first()
+            
+            if not tag:
+                # Om taggen inte finns, skapa den
+                tag = Tag(name=name)
+                db.session.add(tag)
+            
+            # Koppla taggen till frågan
+            question.tags.append(tag)
 
-    db.session.commit()
-    return {"success": True}
+    try:
+        db.session.commit()
+        return {"success": True}
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error saving tags: {e}")
+        return {"success": False, "error": str(e)}, 500
 
 @app.route("/admin/tag_suggest")
 def tag_suggest():
     text = request.args.get("text", "")
-    tags = Tag.query.filter(Tag.name.ilike(f"%{text}%")).all()
+    if not text:
+        return jsonify([])
+    # Modern SQLAlchemy-syntax (istället för Tag.query)
+    stmt = select(Tag).where(Tag.name.ilike(f"%{text}%")).limit(10)
+    tags = db.session.execute(stmt).scalars().all()   
     return jsonify([t.name for t in tags])
 
 @app.route("/admin/add_assignment")

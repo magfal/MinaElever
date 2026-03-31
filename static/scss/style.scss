@@ -6,9 +6,11 @@
 
 // 2. Bootstrap overrides
 $primary: #187513;
-$success: #1cc88a;
+$secondary: #2c3e50;
+$danger: #dc3545;
+$success: #0d9462;
 $dark:    #2c3e50;
-$body-bg: #f8f9fc;
+$body-bg: #fcf8f9;
 
 $font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
 
@@ -16,6 +18,43 @@ $font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
 @import "bootstrap";
 
 // 4. Din egen design
+
+#questionsTable {
+    thead {
+        // Huvudraden med rubriker
+        tr:first-child th {
+            background-color: $secondary !important; // Bootstraps bg-dark
+            color: #fff !important;
+            border-color: #373b3e !important;
+            vertical-align: middle;
+            
+            // Fixar så att DataTables sorteringspilar syns mot mörk bakgrund
+            &.dt-orderable-asc, &.dt-orderable-desc {
+                cursor: pointer;
+            }
+        }
+
+        // Filter-raden (den under rubrikerna)
+        tr.filters {
+            th {
+                background-color: $secondary !important; // Något ljusare mörkgrå
+                padding: 8px;
+                border-color: #373b3e;
+
+                .column-filter, .form-select, .date-from, .date-to {
+                    background-color: #f8f9fa;
+                    border: 1px solid #495057;
+                    
+                    &:focus {
+                        background-color: #fff;
+                        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+                    }
+                }
+            }
+        }
+    }
+}
+
 .bg-white.border.rounded-3 {
     box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
     transition: border-color 0.3s ease;

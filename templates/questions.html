@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    /* Dölj original-inputen helt när Tagify tagit över, 
+    så den inte tar upp plats eller förskjuter cellen */
+    .editable-tags.tagify--outside {
+        display: none !important;
+    }
+
+    /* Tvinga cellen att ha en fast bredd och stoppa spill */
+    #questionsTable td:nth-child(3) {
+        width: 250px !important;
+        min-width: 250px !important;
+        max-width: 250px !important;
+        white-space: nowrap;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white d-flex flex-column flex-md-row justify-content-between align-items-center">
+            <h4 class="mb-2 mb-md-0">Frågor</h4>            
+            <button id="newQuestionBtn" class="btn btn-primary">
+                Skapa ny fråga
+            </button>
+        </div>
+        <div class="table-responsive">    
+            <table id="questionsTable" class="table table-striped table-bordered align-middle">
+                <thead class="table-dark">
+                    <!-- RUBRIKER -->
+                    <tr>
+                        <th>Fråga</th>
+                        <th>Ämne</th>
+                        <th>Taggar</th>
+                        <th>Typ</th>
+                        <th>Skapad</th>
+                        <th>Tilldela</th>
+                    </tr>
+                    <!-- FILTERRAD -->
+                    <tr class="filters">
+                        <th>
+                            <input class="form-control form-control-sm column-filter" placeholder="Sök text">
+                        </th>
+                        <th>
+                            <select class="form-select form-select-sm column-filter">
+                                <option value="">Alla</option>
+                                {% for s in subjects %}
+                                    <option value="{{ s.name }}">{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </th>
+                        <th>
+                            <input class="form-control form-control-sm column-filter" placeholder="Sök taggar">
+                        </th>
+                        <th>
+                            <select class="form-select form-select-sm column-filter">
+                                <option value="">Alla</option>
+                                {% for qt in question_types %}
+                                    <option value="{{ qt.name }}">{{ qt.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </th>
+                        <th></th>
+                        <th></th>
+                    </tr>
+                </thead>                        
+
+                <tbody>
+                    <!-- FRÅGOR -->
+                    {% for q in questions %}
+                    <tr>
+                        <td contenteditable="true"
+                            class="editable"
+                            data-id="{{ q.id }}"
+                            data-field="prompt">    
+                            {{ q.prompt }}
+                        </td>
+                        <td>
+                            <span class="dt-search visually-hidden">{{ q.subject.name }}</span>
+                            <select class="form-select form-select-sm editable-select"
+                                    data-id="{{ q.id }}"
+                                    data-field="subject_id">
+                                {% for s in subjects %}
+                                    <option value="{{ s.id }}"
+                                            {% if s.id == q.subject_id %}selected{% endif %}>
+                                        {{ s.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <span class="dt-search visually-hidden">{{ q.tags | map(attribute='name') | join(', ') }}</span>
+                            <input type="text"
+                                class="form-control form-control-sm editable-tags"
+                                data-id="{{ q.id }}"
+                                value="{{ q.tags | map(attribute='name') | join(', ') }}">
+                            <div class="autocomplete-box" style="display:none;"></div>
+                        </td>
+                        <td>
+                            <span class="dt-search visually-hidden">{{ q.question_type.name }}</span>
+                            <select class="form-select form-select-sm editable-select"
+                                    data-id="{{ q.id }}"
+                                    data-field="question_type">
+                                {% for qt in question_types %}
+                                    <option value="{{ qt.name }}"
+                                            {% if qt == q.question_type %}selected{% endif %}>
+                                        {{ qt.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            {{ q.created_at.strftime('%Y-%m-%d') }}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('add_assignment', question_id=q.id) }}"
+                            class="btn btn-sm btn-primary">
+                                Tilldela
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>  
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.0.3/js/dataTables.js"></script>
+<script src="https://cdn.datatables.net/2.0.3/js/dataTables.bootstrap5.js"></script>
+<script>
+$(document).ready(function() {
+    let table; // Definiera variabeln högt upp
+
+    // 1. FUNKTION FÖR ATT STARTA TAGIFY
+    function initTagify(element) {
+        // Kontrollera om elementet redan har Tagify ELLER om det redan finns en Tagify-box precis bredvid
+        if (!element || element.tagify || $(element).parent().find('.tagify').length > 0) {
+            return; 
+        }
+
+        const tagify = new Tagify(element, {
+            enforceWhitelist: false,
+            whitelist: [], 
+            dropdown: {
+                enabled: 1, 
+                maxItems: 5,
+                position: "text",
+                closeOnSelect: true
+            }
+        });
+
+        // LÄGG TILL DENNA RAD:
+        element.__tagify = tagify;
+
+        // Stoppa sortering/klick på raden när man pillar på taggar
+        $(tagify.DOM.scope).on('click', function(e) {
+            e.stopPropagation();
+        });
+
+        tagify.on('input', e => {
+            const value = e.detail.value;
+            fetch(`/admin/tag_suggest?text=${value}`)
+                .then(res => res.json())
+                .then(list => tagify.whitelist = list);
+        });
+
+        // Denna triggas när taggar läggs till eller tas bort
+        tagify.on('change', e => {
+            const originalInput = tagify.DOM.originalInput;
+            // Vi använder ren JS för att hämta ID för att vara 100% säkra
+            const questionId = originalInput.getAttribute('data-id');
+
+            if (!questionId) return; 
+
+            // 1. Hämta de nya värdena
+            const tagValues = tagify.value.map(t => t.value).join(',');
+
+            // 2. Uppdatera HTML-värdet så att det finns kvar vid omladdning/sortering
+            originalInput.setAttribute('value', tagValues);
+
+            // 3. Uppdatera den dolda sök-texten
+            const $cell = $(originalInput).closest('td');
+            $cell.find(".dt-search").text(tagValues);
+
+            // 4. KRITISKT: Tvinga DataTables att spara ner den nya HTML:en i sitt minne
+            const row = table.row($cell.closest('tr'));
+            row.invalidate().draw(false); 
+
+            // 5. Skicka till Python
+            fetch("/admin/update_tags", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: questionId,
+                    tags: tagValues
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(!data.success) console.error("Kunde inte spara i DB");
+            });
+        });
+    }
+
+    // 2. DATATABLES INIT
+    table = $('#questionsTable').DataTable({
+        deferRender: true,
+        pageLength: 25,
+        orderCellsTop: true,
+        fixedHeader: true,
+        order: [[4, "desc"]],
+        // VIKTIGT: Återaktivera Tagify varje gång tabellen ritas om (sök/page/sort)
+        drawCallback: function() {
+            document.querySelectorAll('.editable-tags').forEach(el => initTagify(el));
+        },
+        layout: {
+            topStart: null, 
+            topEnd: null,  
+            bottomStart: 'pageLength',
+            bottomEnd: 'paging',      
+            bottom2Start: 'info'       
+        },
+        columnDefs: [
+            {
+                targets: [1, 3], // Ämne (1) och Typ (3) - Vi hoppar över Taggar (2) här!
+                render: function (data, type, row, meta) {
+                    if (type === 'filter' || type === 'search' || type === 'sort') {
+                        var api = new $.fn.dataTable.Api(meta.settings);
+                        var cell = api.cell(meta.row, meta.col).node();    
+                        return $(cell).find('.dt-search').text().trim();
+                    }
+                    return data;
+                }
+            }
+        ],
+        language: {
+            url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/sv-SE.json'
+        }
+    });
+
+    // Hindra sortering när man klickar i filter-elementen
+    $('#questionsTable thead tr.filters').on('click', 'th', function (e) {
+        e.stopPropagation();
+    });
+
+    // KOLUMNFILTER
+    $('#questionsTable thead tr.filters th').each(function (i) {
+        const select = $(this).find('select.column-filter');
+        const input = $(this).find('input.column-filter');
+        if (select.length) {
+            select.on('change', function () {
+                const val = $(this).val();
+                table.column(i).search(val ? '^' + val + '$' : '', true, false).draw();
+            });
+        }
+        if (input.length) {
+            input.on('keyup change', function () {
+                if (table.column(i).search() !== this.value) {
+                    table.column(i).search(this.value).draw();
+                }
+            });
+        }
+    });
+
+// ---------------------------------------------------------
+// 1. KNAPP: LÄGG TILL TOM RAD I TABELLEN
+// ---------------------------------------------------------
+$("#newQuestionBtn").on("click", function () {
+    // Kontrollera att 'table' (DataTable-instansen) existerar
+    if (!table) {
+        console.error("DataTable-instansen 'table' hittades inte.");
+        return;
+    }
+
+    const newRowNode = table.row.add([
+        // Kolumn 1: Fråga
+        `<div contenteditable="true" class="new-prompt" style="min-height:38px; border:1px solid #dee2e6; padding:5px;"></div>`,
+        
+        // Kolumn 2: Ämne
+        `<span class="dt-search"></span>
+         <select class="form-select form-select-sm new-subject">
+            {% for s in subjects %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+         </select>`,
+        
+        // Kolumn 3: Taggar (viktigt med klassen 'new-tags')
+        `<div style="width: 250px;">
+            <span class="dt-search"></span>
+            <input type="text" id="newTagifyInput" class="form-control form-control-sm new-tags">
+        </div>`,
+        
+        // Kolumn 4: Typ
+        `<span class="dt-search"></span>
+         <select class="form-select form-select-sm new-type">
+            {% for qt in question_types %}
+                <option value="{{ qt.name }}">{{ qt.name }}</option>
+            {% endfor %}
+         </select>`,
+        
+        // Kolumn 5: Skapad
+        `Ny`,
+        
+        // Kolumn 6: Spara-knapp
+        `<button class="btn btn-sm btn-success save-new-question">Spara</button>`
+    ]).draw(false).node();
+
+    // Flytta den nya raden överst i tbody
+    $(newRowNode).prependTo("#questionsTable tbody");
+
+        // Starta Tagify på den nya raden direkt
+        const newTagInput = $(newRowNode).find('.new-tags')[0];
+        if (newTagInput) {
+            initTagify(newTagInput);
+        }
+    });
+
+    // ---------------------------------------------------------
+    // 2. KNAPP: SKICKA TILL PYTHON (SPARA)
+    // ---------------------------------------------------------
+    $(document).on("click", ".save-new-question", function () {
+        const $btn = $(this);
+        const $row = $btn.closest("tr");
+        
+        const prompt = $row.find(".new-prompt").text().trim();
+        const subject_id = $row.find(".new-subject").val();
+        const question_type = $row.find(".new-type").val();
+        
+        // Hitta input-fältet
+        const tagInput = $row.find(".new-tags")[0];
+        let tags = "";
+        
+        if (tagInput) {
+            // TRICKET: Om Tagify finns på elementet, hämta värdet direkt från Tagify-instansen
+            // istället för att lita på input.value
+            const tagifyInstance = tagInput.__tagify; 
+            if (tagifyInstance) {
+                tags = tagifyInstance.value.map(t => t.value).join(',');
+            } else {
+                // Fallback om Tagify inte hunnit starta
+                tags = tagInput.value;
+            }
+        }
+
+        if (!prompt) {
+            alert("Frågan kan inte vara tom.");
+            return;
+        }
+
+        // Hindra dubbelklick
+        $btn.prop('disabled', true).text('Sparar...');
+
+        fetch("/admin/create_question", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                prompt: prompt,
+                subject_id: subject_id,
+                tags: tags,
+                question_type: question_type
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "ok") {
+                location.reload();
+            } else {
+                alert("Fel: " + (data.error || "Kunde inte spara"));
+                $btn.prop('disabled', false).text('Spara');
+            }
+        })
+        .catch(err => {
+            console.error("Fetch error:", err);
+            $btn.prop('disabled', false).text('Spara');
+        });
+    });
+
+    // INLINE-EDIT FÖR TEXT
+    $(document).on("blur", ".editable", function () {
+        const id = $(this).data("id");
+        if (!id) return;
+
+        fetch("/admin/update_question", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                id: id,
+                field: $(this).data("field"),
+                value: $(this).text().trim()
+            })
+        });
+    });
+
+    // INLINE-EDIT FÖR SELECTS
+    $(document).on("change", ".editable-select", function () {
+        const $select = $(this);
+        const newVal = $select.find("option:selected").text().trim();
+        const $cell = $select.closest('td');
+        
+        $cell.find(".dt-search").text(newVal);
+        const rowIdx = table.row($select.closest('tr')).index();
+        const colIdx = table.column($cell).index();
+        table.cell(rowIdx, colIdx).invalidate().draw(false);
+
+        fetch("/admin/update_question", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                id: $select.data("id"),
+                field: $select.data("field"),
+                value: $select.val()
+            })
+        });
+    });
+
+    // Enter-tangent för att spara editable
+    $(document).on("keydown", ".editable", function(e) {
+        if (e.which == 13) {
+            e.preventDefault();
+            $(this).blur();
+        }
+    });
+});
+</script>
+
+{% endblock %}
