@@ -295,19 +295,14 @@ def tag_suggest():
 @app.route("/admin/add_assignment")
 def add_assignment():
     question_id = request.args.get("question_id", type=int)
-
     subjects = db.session.scalars(select(Subject)).all()
     groups = db.session.scalars(select(Group)).all()
-
     now = datetime.now().replace(second=0, microsecond=0)
     one_hour_later = now + timedelta(hours=1)
-
     selected_question = None
     if question_id:
         selected_question = db.session.get(Question, question_id)
-
     question_types = [qt for qt in QuestionType]
-    
     return render_template(
         "add_assignment.html",
         subjects=subjects,
@@ -323,27 +318,21 @@ def search_questions():
     text = request.args.get("text", "").strip()
     if not text:
         return jsonify([])
-
     base_query = Question.query
-
     db_matches = base_query.filter(
         or_(
             Question.prompt.ilike(f"%{text}%"),
             Question.tags.any(Tag.name.ilike(f"%{text}%"))
         )
     ).all()
-
     results = {q.id: {"id": q.id, "text": q.prompt, "subject_id": q.subject_id, "score": 100}
                for q in db_matches}
-
     all_questions = base_query.all()
     for q in all_questions:
         score = fuzz.partial_ratio(text.lower(), q.prompt.lower())
         if score > 70:
             results[q.id] = {"id": q.id, "text": q.prompt, "subject_id": q.subject_id, "score": score}
-
     sorted_results = sorted(results.values(), key=lambda x: x["score"], reverse=True)
-
     return jsonify(sorted_results)
 
 
