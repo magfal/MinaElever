@@ -54,7 +54,9 @@
                         <label class="form-label fw-bold">Frågetyp</label>
                         <select name="question_type" id="questionTypeSelect" class="form-select" required>
                             {% for qt in question_types %}
-                                <option value="{{ qt.name }}">{{ qt.name }}</option>
+                                {% if qt.value != 'observation' %}
+                                    <option value="{{ qt.value }}">{{ qt.value }}</option>
+                                {% endif %} 
                             {% endfor %}
                         </select>
                     </div>

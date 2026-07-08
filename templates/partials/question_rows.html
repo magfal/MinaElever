@@ -1,0 +1,56 @@
+{% for q in questions %}
+<tr>
+    <td>
+        <input type="text" class="form-control form-control-sm border-0 bg-transparent"
+               value="{{ q.prompt }}"
+               name="value"
+               hx-post="/admin/update_question_field"
+               hx-vals='{"id": "{{ q.id }}", "field": "prompt"}'
+               hx-trigger="blur">
+    </td>
+
+    <td>
+        <select class="form-select form-select-sm border-0 bg-transparent"
+                name="value"
+                hx-post="/admin/update_question_field"
+                hx-vals='{"id": "{{ q.id }}", "field": "subject_id"}'
+                hx-trigger="change">
+            {% for s in subjects %}
+            <option value="{{ s.id }}" {% if s.id == q.subject_id %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+        </select>
+    </td>
+
+    <td x-data="tagEditor({{ q.tags | map(attribute='name') | list | tojson }}, {{ q.id }})">
+        <div class="d-flex flex-wrap gap-1">
+            <template x-for="(tag, index) in tags" :key="index">
+                <span class="badge rounded-pill bg-info text-dark d-flex align-items-center">
+                    <span x-text="tag"></span>
+                    <button @click="removeTag(index)" class="btn-close btn-close-white ms-2" style="font-size: 0.5rem;"></button>
+                </span>
+            </template>
+            <input type="text" x-model="newTag" @keydown.enter="addTag" 
+                   class="form-control form-control-sm d-inline-block w-auto" 
+                   placeholder="+" style="width: 50px !important;">
+        </div>
+    </td>
+
+    <td>
+        <select class="form-select form-select-sm border-0 bg-transparent"
+                name="value"
+                hx-post="/admin/update_question_field"
+                hx-vals='{"id": "{{ q.id }}", "field": "question_type"}'
+                hx-trigger="change"> 
+        {% for qt in question_types %}
+        <option value="{{ qt.name }}" {% if qt.name == q.question_type.name %}selected{% endif %}>{{ qt.name }}</option>
+        {% endfor %}
+        </select>
+    </td>
+
+    <td>{{ q.created_at.strftime('%y.%m.%d') }}</td>
+
+    <td>
+        <a href="{{ url_for('add_assignment', question_id=q.id) }}" class="btn btn-sm btn-outline-primary">Tilldela</a>
+    </td>
+</tr>
+{% endfor %}

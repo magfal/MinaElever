@@ -5,23 +5,62 @@
 import os
 import random
 import string
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from rapidfuzz import fuzz
-from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify
-from sqlalchemy import select, and_, or_
+from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify, g, make_response 
+from sqlalchemy import select, delete, and_, or_
 from sqlalchemy.exc import IntegrityError
 from flask_sqlalchemy import SQLAlchemy
-from models import db, Subject, Group, QuestionType, Question, Student, Choice, Assignment, Tag, Response
+from models import db, Subject, Group, QuestionType, Question, Student, Choice, Assignment, Tag, Response, RememberToken
 
+MAX_TOKENS_PER_STUDENT = 5
+
+load_dotenv() # Laddar inställningar lokalt från .env
+
+### HJÄLPFUNKTIONER ###
+
+# Konverterar datetime till UTC om den inte redan är det
+def utcify(dt):
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 # Genererar en unik kod för varje elev (för inloggning)
 def generate_student_code(length=6):
     characters = string.ascii_lowercase + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
 
-# Laddar inställningar lokalt från .env
-load_dotenv()
+# Skapar en "remember me"-token för en student och sparar den i databasen
+def create_remember_token(student):
+    # 1. Hämta alla tokens för eleven
+    tokens = (
+        db.session.query(RememberToken)
+        .filter_by(student_id=student.id)
+        .order_by(RememberToken.last_used.asc())
+        .all()
+    )
+    # 2. Om vi har för många → ta bort de äldsta
+    if len(tokens) >= MAX_TOKENS_PER_STUDENT:
+        for t in tokens[: len(tokens) - MAX_TOKENS_PER_STUDENT + 1]:
+            db.session.delete(t)
+    # 3. Skapa ny token
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    remember = RememberToken(
+        student_id=student.id,
+        token_hash=token_hash,
+        created_at=datetime.now(timezone.utc),
+        last_used=datetime.now(timezone.utc),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=180)
+    )
+    db.session.add(remember)
+    db.session.commit()
+    return token
 
 app = Flask(__name__)
 
@@ -35,14 +74,50 @@ app.config['SECRET_KEY'] = 'en-valfri-hemlig-text-sträng'
 # Öppnar upp databasen för appen
 db.init_app(app)
 
-# Skapar databasen genom att köra "flask create-db" i terminalen.
+# Skapa databasen genom att köra "flask create-db" i terminalen.
 @app.cli.command("create-db")
 def create_db():
-    """Skapar databasen och tabellerna genom att köra "flask create-db" i terminalen."""
     with app.app_context():
         db.create_all()
         print("Databasen är skapad!")
 
+# Flask-funktion som körs innan varje request för att kolla om studenten är inloggad via session eller cookie.
+@app.before_request
+def load_logged_in_student():
+    student_id = session.get("student_id")
+    if student_id:
+        g.student = db.session.get(Student, student_id)
+        return
+    g.student = None
+    token = request.cookies.get("remember_token")
+    if not token:
+        return
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    remember = db.session.scalar(
+        select(RememberToken).where(RememberToken.token_hash == token_hash)
+    )
+    if not remember:
+        return
+    print(remember.expires_at)
+    print(remember.expires_at.tzinfo)
+    print(datetime.now(timezone.utc))
+    print("EXPIRES RAW:", remember.expires_at)
+    print("TZINFO:", remember.expires_at.tzinfo)
+    print("TYPE:", type(remember.expires_at))
+    if utcify(remember.expires_at) < datetime.now(timezone.utc):
+        db.session.delete(remember)
+        db.session.commit()
+        return
+    student = db.session.get(Student, remember.student_id)
+    if not student:
+        return
+    # logga in
+    session["student_id"] = student.id
+    g.student = student
+    # uppdatera aktivitet
+    remember.last_used = datetime.now(timezone.utc)
+    db.session.commit()
+    
 # Hjälpfunktion för att hämta eller skapa taggar
 def get_or_create_tag(tag_name):
     tag = db.session.execute(db.select(Tag).filter_by(name=tag_name)).scalar_one_or_none()
@@ -50,39 +125,82 @@ def get_or_create_tag(tag_name):
         tag = Tag(name=tag_name)
     return tag
 
-# Här börjar våra routes
+#################################
+### HÄR BÖRJAR FLASK-ROUTERNA ###
+#################################
+
+# Route för startsidan (kollar om eleven är inloggad och visar deras uppgifter, annars skickas de till login-sidan).
 @app.route("/")
 def index():
-    if "student_id" not in session:
+    if not g.student:
         return redirect("/login")
-    student = db.session.get(Student, session["student_id"])   
-    if not student:
-        return redirect("/login")
-    now = datetime.now(timezone.utc)   
+    now = datetime.now(timezone.utc)
     query = (
         select(Assignment)
         .where(
-            Assignment.group_id == student.group_id,
+            Assignment.group_id == g.student.group_id,
             Assignment.start_time < now,
-            Assignment.end_time > now
+            Assignment.end_time > now,
         )
     )
-    assignments = db.session.scalars(query).all()  
-    return render_template("dashboard.html", student=student, assignments=assignments)
+    assignments = db.session.scalars(query).all()
+    return render_template("dashboard.html", student=g.student, assignments=assignments)
 
+# Route för login-sidan (elever loggar in med sin unika kod, genereras med "/admin/add_students".
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        code = request.form.get("code")
-        query = select(Student).where(Student.login_code == code)
-        student = db.session.scalar(query)
-        if student:
-            print(f"Loggar in student: {student.name}")
-            session["student_id"] = student.id
-            return redirect(url_for("index")) 
-        flash("Ogiltig kod, försök igen.", "danger")       
+        code = request.form.get("code", "").strip()
+        student = db.session.scalar(
+            select(Student).where(Student.login_code == code)
+        )
+        if not student:
+            flash("Ogiltig kod", "danger")
+            return render_template("login.html")
+        session.clear()
+        session["student_id"] = student.id
+        # skapa token
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        remember = RememberToken(
+            student_id=student.id,
+            token_hash=token_hash,
+            created_at=datetime.now(timezone.utc),
+            last_used=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=180),
+        )
+        db.session.add(remember)
+        db.session.commit()
+        response = make_response(redirect(url_for("index")))
+        response.set_cookie(
+            "remember_token",
+            token,
+            max_age=60 * 60 * 24 * 180,
+            httponly=True,
+            secure=True,
+            samesite="Lax",
+        )
+        return response
     return render_template("login.html")
 
+# Route för logout (tar bort session och cookie).
+@app.route("/logout")
+def logout():
+    token = request.cookies.get("remember_token")
+    if token:
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        db.session.execute(
+            delete(RememberToken).where(
+                RememberToken.token_hash == token_hash
+            )
+        )
+        db.session.commit()
+    session.clear()
+    response = make_response(redirect(url_for("login")))
+    response.delete_cookie("remember_token")
+    return response
+
+#  Route för att lägga till grupper.
 @app.route("/admin/add_group", methods=["GET", "POST"])
 def add_group():
     if request.method == "POST":
@@ -105,6 +223,7 @@ def add_group():
             return redirect(url_for('add_group'))
     return render_template("add_group.html")
 
+# Route för att lägga till elever (flera på en gång) i en grupp.
 @app.route('/admin/add_students', methods=["GET","POST"])
 def add_students():
     if request.method == "POST":
@@ -142,6 +261,25 @@ def add_students():
     query = select(Group).order_by(Group.name)
     groups = db.session.scalars(query).all()
     return render_template("add_students.html", groups=groups)
+
+# Route för att uppdatera en elevs inloggningskod (genererar en ny kod).
+@app.route('/admin/update_student_code', methods=["GET", "POST"])
+def update_student_code():
+    if request.method == "POST":
+        student_id = request.form.get("student_id")
+        new_code = generate_student_code()
+        student = db.session.get(Student, student_id)
+        if student:
+            student.login_code = new_code
+            db.session.commit()
+            flash(f"Ny inloggningskod för {student.name}: {new_code}", "success")
+        else:
+            flash("Elev inte hittad", "danger")
+    students = db.session.scalars(select(Student)).all()
+    return render_template(
+        "update_student_code.html",
+        students=students
+    )
 
 @app.route('/admin/view_group/<int:group_id>')
 def view_group(group_id):
@@ -242,6 +380,46 @@ def update_question():
     setattr(q, field, value)
     db.session.commit()
     return {"success": True}
+
+# Uppdaterad sök-route för HTM
+@app.route("/admin/search_questions_table")
+def search_questions_table():
+    text = request.args.get("text", "").strip().lower() 
+    # Hämta alla frågor (eller begränsa om databasen är enorm)
+    all_questions = db.session.scalars(select(Question)).all()
+    if not text:
+        results = all_questions
+    else:
+        # Fuzzy search med din befintliga logik
+        scored_results = []
+        for q in all_questions:
+            # Kolla prompt ELLER taggar
+            tag_text = " ".join([t.name.lower() for t in q.tags])
+            score = max(
+                fuzz.partial_ratio(text, q.prompt.lower()),
+                fuzz.partial_ratio(text, tag_text)
+            )
+            if score > 60: # Tröskelvärde
+                scored_results.append((score, q))
+        # Sortera på poäng
+        scored_results.sort(key=lambda x: x[0], reverse=True)
+        results = [r[1] for r in scored_results]
+
+    # Returnera enbart rader (en partial template)
+    return render_template("partials/question_rows.html", questions=results)
+
+# Route för att uppdatera ett fält (HTM-vänlig)
+@app.route("/admin/update_question_field", methods=["POST"])
+def update_question_field():
+    q_id = request.form.get("id")
+    field = request.form.get("field")
+    value = request.form.get("value")
+    q = db.session.get(Question, q_id)
+    if field == "question_type":
+        value = QuestionType[value]
+    setattr(q, field, value)
+    db.session.commit()
+    return "", 200 # HTM behöver inget svar om vi bara vill uppdatera tyst
 
 @app.route("/admin/update_tags", methods=["POST"])
 def update_tags():
