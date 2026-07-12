@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+<h2>
+{% if response_type=="observation" %}
+Observation
+{% else %}
+Notering
+{% endif %}
+</h2>
+
+
+<h5>Elever:</h5>
+
+<ul>
+{% for student in students %}
+<li>
+{{student.name}} ({{student.group.name}})
+</li>
+{% endfor %}
+</ul>
+
+
+<form method="post">
+
+<input type="hidden" 
+name="response_type" 
+value="{{response_type}}">
+
+
+{% for student in students %}
+<input type="hidden"
+name="student_ids"
+value="{{student.id}}">
+{% endfor %}
+
+
+<label>
+Text
+</label>
+
+<textarea 
+class="form-control"
+name="text"
+rows="5">
+</textarea>
+
+
+<button class="btn btn-primary mt-3">
+Spara
+</button>
+
+
+</form>
+
+</div>
+
+{% endblock %}

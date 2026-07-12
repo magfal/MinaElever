@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Importera elever{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card p-4 shadow-sm">
+            <h2 class="mb-3 text-primary">
+                Importera elever
+            </h2>
+            <p class="mb-4 text-muted">
+                Klistra in elevnamn (ett namn per rad). 
+                Loginkoder skapas automatiskt.
+            </p>
+            <form method="POST">
+                <!-- Elevlista -->
+                <div class="mb-4">
+                    <label for="student_list" class="form-label">
+                        Elever
+                    </label>
+                    <textarea
+                        name="student_list"
+                        id="student_list"
+                        rows="8"
+                        class="form-control"
+                        placeholder="Anna Andersson&#10;Bertil Bengtsson&#10;Cecilia Carlsson"
+                        style="white-space: pre-wrap; overflow-y: scroll;"></textarea>
+                </div>
+                <!-- Befintlig grupp -->
+                <div class="mb-3">
+                    <label class="form-label">
+                        Lägg till i befintlig grupp
+                    </label>
+                    <select 
+                        name="group_id" 
+                        class="form-select">
+                        <option value="">
+                            Välj grupp...
+                        </option>
+                        {% for group in groups %}
+                        <option value="{{ group.id }}">
+                            {{ group.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="text-center text-muted mb-3">
+                    eller
+                </div>
+                <!-- Ny grupp -->
+                <div class="mb-4">
+                    <label 
+                        for="new_group_name" 
+                        class="form-label">
+                        Skapa ny grupp
+                    </label>
+                    <input
+                        type="text"
+                        name="new_group_name"
+                        id="new_group_name"
+                        class="form-control"
+                        placeholder="Exempel: 8A">
+                </div>
+                <button 
+                    type="submit" 
+                    class="btn btn-primary w-100">
+                    Importera elever
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

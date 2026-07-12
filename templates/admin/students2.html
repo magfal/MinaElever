@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %} Elever {% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <h2 class="mb-4">Elevadministration</h2>
+
+
+    <!-- FILTER -->
+    <div class="row mb-3">
+
+        <div class="col-md-6">
+            <label>Sök elev</label>
+            <input 
+                class="form-control" 
+                id="student-search"
+                placeholder="Skriv namn..."
+            >
+        </div>
+
+
+        <div class="col-md-4">
+            <label>Grupp</label>
+
+            <select 
+                class="form-select" 
+                id="group-filter"
+            >
+                <option value="">Alla grupper</option>
+
+                {% for group in groups %}
+                    <option value="{{group.id}}">
+                        {{group.name}}
+                    </option>
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- OBSERVATION / NOTERING FORM -->
+    <form method="post" action="{{url_for('create_admin_response')}}">
+
+        <table id="student-table" class="table table-hover">
+
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Namn</th>
+                    <th>Grupp</th>
+                    <th>Kod</th>
+                    <th></th>
+                </tr>
+            </thead>
+
+
+            <tbody>
+
+            {% for student in students %}
+
+                <tr 
+                    data-name="{{student.name.lower()}}"
+                    data-group="{{student.group_id}}"
+                >
+
+                    <td>
+                        <input 
+                            type="checkbox"
+                            name="students_ids"
+                            value="{{student.id}}"
+                        >
+                    </td>
+
+
+                    <td>
+                        {{student.name}}
+                    </td>
+
+
+                    <td>
+                        {{student.group.name}}
+                    </td>
+
+
+                    <td>
+                        {{student.login_code}}
+                    </td>
+
+
+                    <td>
+
+                        <button 
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#modal{{student.id}}"
+                        >
+                            Ändra
+                        </button>
+
+
+                        <button
+                            type="submit"
+                            form="new-code-{{student.id}}"
+                            class="btn btn-sm btn-warning"
+                        >
+                            Ny kod
+                        </button>
+
+
+                    </td>
+
+                </tr>
+
+
+            {% endfor %}
+
+            </tbody>
+
+
+        </table>
+
+
+        <button 
+            class="btn btn-success"
+            name="type"
+            value="observation"
+        >
+            Observation
+        </button>
+
+
+        <button 
+            class="btn btn-info"
+            name="type"
+            value="note"
+        >
+            Notering
+        </button>
+
+
+    </form>
+
+
+
+
+    <!-- SEPARATA FORMULÄR FÖR NYA KODER -->
+    {% for student in students %}
+
+        <form 
+            id="new-code-{{student.id}}"
+            method="post"
+            action="{{url_for('new_student_code', student_id=student.id)}}"
+        >
+        </form>
+
+    {% endfor %}
+
+
+
+
+
+    <!-- MODALER FÖR ÄNDRA ELEVER -->
+
+    {% for student in students %}
+
+    <div 
+        class="modal fade"
+        id="modal{{student.id}}"
+        tabindex="-1"
+    >
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+
+                <form 
+                    method="post"
+                    action="{{url_for('update_student', student_id=student.id)}}"
+                >
+
+
+                    <div class="modal-header">
+
+                        <h5 class="modal-title">
+                            Ändra elev
+                        </h5>
+
+                    </div>
+
+
+                    <div class="modal-body">
+
+
+                        <label>Namn</label>
+
+                        <input 
+                            class="form-control"
+                            name="name"
+                            value="{{student.name}}"
+                        >
+
+
+
+                        <label class="mt-3">
+                            Grupp
+                        </label>
+
+
+                        <select 
+                            class="form-select"
+                            name="group_id"
+                        >
+
+                            {% for group in groups %}
+
+                                <option 
+                                    value="{{group.id}}"
+                                    {% if group.id == student.group_id %}
+                                    selected
+                                    {% endif %}
+                                >
+
+                                    {{group.name}}
+
+                                </option>
+
+                            {% endfor %}
+
+
+                        </select>
+
+
+                    </div>
+
+
+
+                    <div class="modal-footer">
+
+                        <button 
+                            class="btn btn-primary"
+                        >
+                            Spara
+                        </button>
+
+                    </div>
+
+
+                </form>
+
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    {% endfor %}
+
+
+
+
+</div>
+
+
+
+
+
+<script>
+
+
+const searchInput = document.getElementById("student-search");
+const groupFilter = document.getElementById("group-filter");
+
+
+function filterStudents(){
+
+    let search = searchInput.value.toLowerCase();
+    let group = groupFilter.value;
+
+
+    document
+    .querySelectorAll("#student-table tbody tr")
+    .forEach(row => {
+
+
+        let name = row.dataset.name;
+        let rowGroup = row.dataset.group;
+
+
+        let matchesName =
+            name.includes(search);
+
+
+        let matchesGroup =
+            group === "" || rowGroup === group;
+
+
+
+        if(matchesName && matchesGroup){
+
+            row.style.display="";
+
+        }
+        else{
+
+            row.style.display="none";
+
+        }
+
+
+    });
+
+
+}
+
+
+searchInput.addEventListener(
+    "input",
+    filterStudents
+);
+
+
+groupFilter.addEventListener(
+    "change",
+    filterStudents
+);
+
+
+</script>
+
+
+{% endblock %}
