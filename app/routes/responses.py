@@ -26,6 +26,16 @@ responses_bp = Blueprint(
 )
 
 #Sparar response
+@responses_bp.route("/add_observation", methods=["GET", "POST"])
+def add_observation():
+    pass
+
+#Sparar response
+@responses_bp.route("/add_note", methods=["GET", "POST"])
+def add_note():
+    pass
+
+#Sparar response
 @responses_bp.route("/save", methods=["GET", "POST"])
 def save_response():
     student_ids = request.form.getlist("student_ids")
@@ -75,3 +85,4 @@ def response(id):
         question=question,
         choices=choices
    )
+

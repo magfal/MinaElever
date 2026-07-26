@@ -67,9 +67,16 @@ question_tag_link = Table(
     Column("tag_id", ForeignKey("tags.id"), primary_key=True),
 )
 
+student_team_link = Table(
+    "student_team_link",
+    Base.metadata,
+    Column("team_id", ForeignKey("teams.id"), primary_key=True),
+    Column("student_id", ForeignKey("students.id"), primary_key=True),
+)
+
 student_assignment_link = Table(
     "student_assignment_link",
-    Base.metadata,
+    Base.metadata,  
     Column("assignment_id", ForeignKey("assignments.id"), primary_key=True),
     Column("student_id", ForeignKey("students.id"), primary_key=True),
 )
@@ -182,12 +189,22 @@ class Group(Base):
     __tablename__ = "groups"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Relationer
     students: Mapped[List["Student"]] = relationship(back_populates="group", order_by="Student.name")
+
+class Team(Base):
+    __tablename__ = "teams"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), unique=True)
+    description: Mapped[str | None] = mapped_column(String(120))
+    # Relationer
+    students: Mapped[List["Student"]] = relationship(secondary=student_team_link, back_populates="teams")
 
 class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     access_code: Mapped[str] = mapped_column(String(20), unique=True)
     last_seen: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -202,23 +219,22 @@ class User(Base):
 class Teacher(User):
     __tablename__ = "teachers"
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
-    name: Mapped[str]
     __mapper_args__ = {"polymorphic_identity": "teacher"}
 
 class Student(User):
     __tablename__ = "students"
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
-    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id"), nullable=False)
-    name: Mapped[str] = mapped_column(String(120))
+    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id"), nullable=False)  
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Relationer
     group: Mapped["Group"] = relationship(back_populates="students")
     responses: Mapped[List["Response"]] = relationship(back_populates="student", foreign_keys="Response.student_id")
     remember_tokens: Mapped[List["RememberToken"]] = relationship(back_populates="student")
     assignments: Mapped[List["Assignment"]] = relationship(secondary=student_assignment_link, back_populates="students")
+    teams: Mapped[List["Team"]] = relationship(secondary=student_team_link, back_populates="students")
     point_transactions: Mapped[List["PointTransaction"]] = relationship(back_populates="student",cascade="all, delete-orphan")
     badges: Mapped[List["Badge"]] = relationship(secondary=student_badge_link, back_populates="students", passive_deletes=True)
     # Denna regel säger att kombinationen (namn + grupp_id) måste vara unik.
-    __table_args__ = (UniqueConstraint('name', 'group_id', name='_name_group_uc'),)
     __mapper_args__ = {"polymorphic_identity": "student"}
 
     @property

@@ -11943,6 +11943,26 @@ textarea.form-control-lg {
   padding: 2px 6px;
 }
 
+.sticky-table-container {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.sticky-table thead th {
+  position: sticky;
+  top: 0;
+  background-color: var(--bs-body-bg);
+  z-index: 10;
+}
+
+.sortable {
+  cursor: pointer;
+}
+
+.sortable:hover {
+  text-decoration: underline;
+}
+
 .editable {
   cursor: text;
   transition: background-color 0.2s ease;

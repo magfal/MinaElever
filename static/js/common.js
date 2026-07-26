@@ -1,41 +1,74 @@
-// --------------------------------------------------
-// Spara och återställ formulärfält
-// --------------------------------------------------
+function initToasts() {
+    document
+        .querySelectorAll(".toast")
+        .forEach(function (toastEl) {
+            const delay =
+                Number(toastEl.dataset.delay || 5000);
+            const toast =
+                new bootstrap.Toast(toastEl, {
+                    delay: delay
+                });
+            toast.show();
+        });
+}
 
 function rememberInput(id) {
     const element = document.getElementById(id);
     if (!element) return;
     const key = "remember_" + id;
-
     // Återställ
     const saved = localStorage.getItem(key);
     if (saved !== null) {
         element.value = saved;
     }
-
     // Spara
     element.addEventListener("input", () => {
         localStorage.setItem(key, element.value);
     });
-
     element.addEventListener("change", () => {
         localStorage.setItem(key, element.value);
     });
 }
 
-// --------------------------------------------------
-// Markera alla synliga checkboxar i en tabell
-// --------------------------------------------------
+function rememberSelectedStudents(name) {
+    const key = "selected_" + name;
+    // Återställ efter omladdning
+    const saved = JSON.parse(
+        sessionStorage.getItem(key) || "[]"
+    );
+    document
+        .querySelectorAll(`input[name="${name}"]`)
+        .forEach(cb => {
+            if (saved.includes(cb.value)) {
+                cb.checked = true;
+            }
+        });
+    // Uppdatera innan formulär skickas
+    document
+        .querySelectorAll("form")
+        .forEach(form => {
+            form.addEventListener(
+                "submit",
+                function() {
+                    const selected = [
+                        ...document.querySelectorAll(
+                            `input[name="${name}"]:checked`
+                        )
+                    ]
+                    .map(cb => cb.value);
+                    sessionStorage.setItem(
+                        key,
+                        JSON.stringify(selected)
+                    );
+                }
+            );
+        });
+}
 
 function setupSelectAll(selectAllId, checkboxName, tableId) {
-
     const selectAll = document.getElementById(selectAllId);
-
     if (!selectAll) return;
-
-
     function getVisibleCheckboxes() {
-
         return [...document.querySelectorAll(`#${tableId} tbody tr`)]
             .filter(row => row.style.display !== "none")
             .map(row =>
@@ -44,117 +77,35 @@ function setupSelectAll(selectAllId, checkboxName, tableId) {
                 )
             )
             .filter(cb => cb);
-
     }
-
-
     function updateSelectAll() {
-
         const checkboxes = getVisibleCheckboxes();
-
         selectAll.checked =
             checkboxes.length > 0 &&
             checkboxes.every(cb => cb.checked);
-
     }
-
-
     // Markera/avmarkera alla synliga
     selectAll.addEventListener("change", function () {
-
         getVisibleCheckboxes()
             .forEach(cb => {
-
                 cb.checked = selectAll.checked;
-
             });
-
         updateSelectAll();
-
     });
-
-
     // Om en elev ändras manuellt
     document
         .querySelectorAll(`input[name="${checkboxName}"]`)
         .forEach(cb => {
-
             cb.addEventListener(
                 "change",
                 updateSelectAll
             );
-
         });
-
-
     // Gör funktionen tillgänglig för filtret
     window.updateSelectAll = updateSelectAll;
-
-
     // Startläge
     updateSelectAll();
-
 }
-
-// --------------------------------------------------
-// Behåll markerade elever efter sidladdning
-// --------------------------------------------------
-
-function rememberSelectedStudents(name) {
-
-    const key = "selected_" + name;
-
-
-    // Återställ efter omladdning
-    const saved = JSON.parse(
-        sessionStorage.getItem(key) || "[]"
-    );
-
-
-    document
-        .querySelectorAll(`input[name="${name}"]`)
-        .forEach(cb => {
-
-            if (saved.includes(cb.value)) {
-                cb.checked = true;
-            }
-
-        });
-
-
-    // Uppdatera innan formulär skickas
-    document
-        .querySelectorAll("form")
-        .forEach(form => {
-
-            form.addEventListener(
-                "submit",
-                function() {
-
-                    const selected = [
-                        ...document.querySelectorAll(
-                            `input[name="${name}"]:checked`
-                        )
-                    ]
-                    .map(cb => cb.value);
-
-
-                    sessionStorage.setItem(
-                        key,
-                        JSON.stringify(selected)
-                    );
-
-                }
-            );
-
-        });
-
-}
-
-
-// --------------------------------------------------
-// Filtrerar tabellrader efter text och dropdown-filter
-// --------------------------------------------------
 
 function setupTableFilter(options) {
     const searchInput = document.getElementById(options.searchId);
@@ -220,3 +171,51 @@ function setupTableFilter(options) {
         updateSelectAll();
     }
 }
+
+function showMessage(message, category="success") {
+
+    const container =
+        document.getElementById("toastContainer");
+
+    if (!container) return;
+
+    const toastElement = document.createElement("div");
+
+    toastElement.className =
+        "toast";
+
+    toastElement.setAttribute(
+        "role",
+        "alert"
+    );
+
+    toastElement.innerHTML = `
+        <div class="toast-body">
+            ${message}
+        </div>
+    `;
+
+    container.appendChild(toastElement);
+
+    const toast =
+        new bootstrap.Toast(
+            toastElement,
+            {
+                delay:5000
+            }
+        );
+
+    toast.show();
+}
+
+function closeModal() {
+    const modalElement =
+        document.getElementById("studentModal");
+    const modal =
+        bootstrap.Modal.getInstance(modalElement);
+    if (modal) {
+        modal.hide();
+    }
+}
+
+//fetchJson()

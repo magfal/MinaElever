@@ -35,3 +35,13 @@ def index():
         student=g.student,
         assignments=g.student.active_assignments
     )
+
+@dashboard_bp.route("/student_view/<int:student_id>")
+def student_view(student_id):
+    student = db.session.scalar(
+        select(Student).where(Student.id == student_id))
+    return render_template(
+        "dashboard.html",
+        student=student,
+        assignments=student.active_assignments
+    )

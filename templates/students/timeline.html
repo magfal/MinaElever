@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ student.name }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+
+            <h2>{{ student.name }}</h2>
+
+            <div class="text-muted">
+                {{ student.group.name }}
+            </div>
+
+        </div>
+
+        <div>
+
+            <a
+                href="{{ url_for('assignments.add_assignment_post',
+                                 student_id=student.id) }}"
+                class="btn btn-primary">
+
+                Uppgift
+
+            </a>
+
+            <a
+                href="{{ url_for('responses.add_observation',
+                                 student_id=student.id) }}"
+                class="btn btn-success">
+
+                Observation
+
+            </a>
+
+            <a
+                href="{{ url_for('responses.add_note',
+                                 student_id=student.id) }}"
+                class="btn btn-info">
+
+                Notering
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card mb-4">
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-md-4">
+
+                    <strong>Senast aktiv</strong><br>
+
+                    {% if student.last_response %}
+                        {{ student.last_response.strftime("%Y-%m-%d %H:%M") }}
+                    {% else %}
+                        Aldrig
+                    {% endif %}
+
+                </div>
+
+                <div class="col-md-4">
+
+                    <strong>Grupp</strong><br>
+
+                    {{ student.group.name }}
+
+                </div>
+
+                <div class="col-md-4">
+
+                    <strong>Antal svar</strong><br>
+
+                    {{ responses|length }}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% for response in responses %}
+
+        <div class="card mb-3">
+
+            <div class="card-header">
+
+                {{ response.submitted_at.strftime("%Y-%m-%d %H:%M") }}
+
+            </div>
+
+            <div class="card-body">
+
+                <h5>
+
+                    {{ response.question.title }}
+
+                </h5>
+
+                <p>
+
+                    {{ response.answer }}
+
+                </p>
+
+            </div>
+
+        </div>
+
+    {% else %}
+
+        <div class="alert alert-secondary">
+
+            Eleven har ännu inga svar.
+
+        </div>
+
+    {% endfor %}
+
+</div>
+
+{% endblock %}

@@ -25,22 +25,24 @@ def register_blueprints(app):
     from .routes.auth import auth_bp
     from .routes.dashboard import dashboard_bp
     from .routes.students import students_bp
+    from .routes.groups import groups_bp
     from .routes.questions import questions_bp
     from .routes.templates import templates_bp
     from .routes.assignments import assignments_bp
     from .routes.responses import responses_bp
     from .routes.statistics import statistics_bp
-    from .routes.gemification import gemification_bp
+    from .routes.gamification import gamification_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(students_bp)
+    app.register_blueprint(groups_bp)
     app.register_blueprint(questions_bp)
     app.register_blueprint(templates_bp)
     app.register_blueprint(assignments_bp)
     app.register_blueprint(responses_bp)
     app.register_blueprint(statistics_bp)
-    app.register_blueprint(gemification_bp)
+    app.register_blueprint(gamification_bp)
 
 def register_commands(app):
     @app.cli.command("create-db")

@@ -1,27 +1,22 @@
 from flask import Blueprint
-import os
-import random
-import string
-import hashlib
-import secrets
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from rapidfuzz import fuzz
-from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify, g, make_response, abort
+from flask import render_template, request, redirect, session, url_for, flash, jsonify, g, make_response, abort
 from sqlalchemy import select, delete, and_, or_
 from sqlalchemy.exc import IntegrityError
 from flask_sqlalchemy import SQLAlchemy
 from app.extensions import db
 from app.models import InputType, TagType, MediaType, TemplateType, PointType
 from app.models import QuestionTemplateLink
-from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
+from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, Team, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
 from app.utils.student_utils import generate_student_code
 
 students_bp = Blueprint(
     "students",
     __name__,
     url_prefix="/students"
-)       
+)
 
 @students_bp.route("/manage")
 def manage_students():
@@ -43,57 +38,24 @@ def manage_students():
         select(Group)
         .order_by(Group.name)
     ).all()
+    teams = db.session.scalars(
+        select(Team)
+        .order_by(Team.name)
+    ).all()
     return render_template(
-        "admin/students.html",
+        "students_manage.html",
         students=students,
         groups=groups,
+        teams=teams,
         selected_group=group_id,
         search=search
     )
 
-# UPDATE STUDENT
-@students_bp.post("/admin/student/<int:student_id>/update")
-def update_student(student_id):
-    student = db.session.get(
-        Student,
-        student_id
-    )
-    if not student:
-        flash(
-            "Eleven hittades inte",
-            "danger"
-        )
-        return redirect(url_for("students.manage_students"))
-    student.name = request.form.get(
-        "name"
-    ).strip()
-    student.group_id = request.form.get(
-        "group_id",
-        type=int
-    )
-    db.session.commit()
-    flash(
-        "Elev uppdaterad",
-        "success"
-    )
-    return redirect(url_for("students.manage_students"))
-
-# NEW LOGIN CODE
-@students_bp.post("/admin/student/<int:student_id>/new_code")
-def new_student_code(student_id):
-    student = db.session.get(
-        Student,
-        student_id
-    )
-    student.access_code = generate_student_code()
-    db.session.commit()
-    flash(
-        f"Ny kod skapad för {student.name}",
-        "success"
-    )
-    return redirect(url_for("students.manage_students"))
-
-
+@students_bp.get("/new_code")
+def generate_student_code_api():
+    return jsonify({
+        "code": generate_student_code()
+    })
 
 @students_bp.route("/import", methods=["GET", "POST"])
 def import_students():
@@ -135,7 +97,7 @@ def import_students():
                 existing_student = db.session.scalar(
                     select(Student)
                     .where(
-                        Student.name == name,
+                        User.name == name,
                         Student.group_id == group_id
                     )
                 )
@@ -173,33 +135,25 @@ def import_students():
         groups=groups
     )
 
-@students_bp.route("/create_response")
+@students_bp.route("/create_response", methods=["POST"])
 def create_admin_response():
-
     student_ids = request.form.getlist("student_ids")
     response_type = request.form.get("type")
-
-
     if not student_ids:
         flash("Du måste välja minst en elev", "warning")
-        return redirect(url_for("students"))
-
-
+        return redirect(url_for("students.manage_students"))
     students = (
         db.session.scalars(
             select(Student)
             .where(Student.id.in_(student_ids))
             .order_by(Student.name)
-        ).all()
-    )
-
-
+            ).all()
+        )
     return render_template(
         "/admin/create_response.html",
         students=students,
         response_type=response_type
     )
-
 
 # Show student view
 @students_bp.route("/view/<int:student_id>")
@@ -215,15 +169,170 @@ def student_view(student_id):
         student=student
     )
 
-# Visa elevresponser
-@students_bp.route("/responses/<int:student_id>")
-def admin_responses(student_id):
-
+@students_bp.route("/timeline/<int:student_id>")
+def student_timeline(student_id):
     student = db.session.get(Student, student_id)
-
-    if not student:
+    if student is None:
         abort(404)
+    responses = db.session.scalars(
+        select(Response).
+        where(Response.student_id == student_id).
+        order_by(Response.submitted_at.desc())
+        ).all()
+    return render_template(
+        "students/timeline.html",
+        student=student,
+        responses=responses
+        )
 
-    return f"Progression för {student.name}"
+@students_bp.route("/update-selected", methods=["POST"])
+def update_selected():
+    student_ids = request.form.getlist(
+        "students_ids"
+    )
+    group_id = request.form.get(
+        "group_id"
+    )
+    students = Student.query.filter(
+        Student.id.in_(student_ids)
+    ).all()
+    if group_id:
+        for student in students:
+            student.group_id = group_id
+        db.session.commit()
+        flash(
+            "Grupp uppdaterad.",
+            "success"
+        )
+    return redirect(
+        url_for("students.manage_students")
+    )
+
+@students_bp.route("/change_group", methods=["POST"])
+def change_group():
+    data=request.get_json()
+    student = db.session.get(Student, data["student_id"])
+    if not student:
+        return jsonify({
+            "success":False
+        }),404
+    student.group_id = int(data["group_id"])
+    db.session.commit()
+    flash(
+        f"{student.name} bytte till klass {student.group.name}",
+        "success"
+    )
+    return jsonify({
+        "success": True
+    })
+
+@students_bp.route("/change_name", methods=["POST"])
+def change_name():
+    data = request.get_json()
+    student = db.session.get(Student, data["student_id"])
+    if not student:
+        return jsonify({
+            "success":False
+        }),404
+    old_student_name = student.name
+    student.name = data["name"]
+    db.session.commit()
+    flash(
+        f"{old_student_name} bytte namn till {student.name}",
+        "success"
+    )
+    return jsonify({
+        "success": True
+    })
+
+@students_bp.route("/change_code", methods=["POST"])
+def change_code():
+    data = request.get_json()
+    student = db.session.get(Student, data["student_id"])
+    if not student:
+        return jsonify({
+            "success":False
+        }),404
+    student.access_code = data["access_code"]
+    db.session.commit()
+    flash(
+        f"{student.name} bytte namn till {student.access_code}",
+        "success"
+    )
+    return jsonify({
+        "success": True
+    })
+
+@students_bp.post("/add_team")
+def add_team():
+
+    data = request.get_json()
+
+    student = db.session.get(
+        Student,
+        data["student_id"]
+    )
+
+    team = db.session.get(
+        Team,
+        int(data["team_id"])
+    )
 
 
+    if not student or not team:
+        return jsonify({
+            "success": False
+        }), 404
+
+
+    if team not in student.teams:
+
+        student.teams.append(team)
+
+        db.session.commit()
+
+
+        flash(
+            f"{team.name} lades till för {student.name}",
+            "success"
+        )
+
+
+    return jsonify({
+        "success": True
+    })
+
+@students_bp.post("/remove_team")
+def remove_team():
+
+    data = request.get_json()
+
+    student_id = data.get("student_id")
+    team_id = data.get("team_id")
+
+    student = db.session.get(
+        Student,
+        student_id
+    )
+
+    team = db.session.get(
+        Team,
+        team_id
+    )
+
+    if not student or not team:
+        return jsonify({
+            "success": False,
+            "message": "Elev eller grupp saknas"
+        }), 404
+
+
+    if team in student.teams:
+        student.teams.remove(team)
+        db.session.commit()
+
+
+    return jsonify({
+        "success": True,
+        "message": f"{team.name} togs bort"
+    })

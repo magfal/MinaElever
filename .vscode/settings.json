@@ -13,6 +13,7 @@
         "parsa",
         "tagify",
         "uselist",
-        "utcify"
+        "utcify",
+        "workinggroup"
     ]
 }

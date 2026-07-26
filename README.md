@@ -230,3 +230,50 @@ app/
 └── utils/
     └── student_utils.py
     └── tag_utils.py
+
+
+   
+
+Jag tror att en bra målbild för MinaElever är:
+Flask + Jinja
+
+Ansvar:
+
+datamodell
+behörighet
+affärslogik
+HTML-fragment
+HTMX
+
+Ansvar:
+
+skicka formulär
+byta delar av sidan
+uppdatera tabeller/modaler
+CRUD-operationer
+TomSelect
+
+Ansvar:
+
+smarta dropdowns
+sökning bland elever/grupper
+många val
+Alpine.js
+
+Ansvar:
+
+små lokala UI-tillstånd
+
+Exempel:
+
+öppna/stänga en sektion
+visa "är du säker?"
+hålla reda på ett lokalt val innan skickning
+Bootstrap
+
+Ansvar:
+
+layout
+modal
+knappar
+styling

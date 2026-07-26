@@ -57,6 +57,29 @@ def login():
         return response
     return render_template("login.html")
 
+@auth_bp.post("/logout/<int:student_id>")
+def logout_student(student_id):
+    student = db.session.get(
+        Student,
+        student_id
+    )
+    if not student:
+        return {
+            "success": False,
+            "message": "Eleven hittades inte"
+        }, 404
+    db.session.execute(
+        delete(RememberToken)
+        .where(
+            RememberToken.student_id == student.id
+        )
+    )
+    db.session.commit()
+    return {
+        "success": True,
+        "message": f"{student.name} är nu utloggad från alla enheter"
+    }
+
 # Route för logout (tar bort session och cookie).
 @auth_bp.route("/logout", methods=["GET", "POST"])
 def logout():
