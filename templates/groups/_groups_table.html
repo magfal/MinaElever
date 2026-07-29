@@ -1,0 +1,46 @@
+<!-- Klasser -->
+            <table class="table table-hover mb-0">
+                <colgroup>
+                    <col style="width: 20%">
+                    <col style="width: 20%">
+                    <col style="width: 60%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Namn</th>
+                        <th>Elever</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if groups %}
+                        {% for group in groups %}
+                        <tr>
+                            <td>
+                                {{ group.name }}
+                            </td>
+                            <td>
+                                {{ group.students|length }}
+                            </td>
+                            <td class="text-end">
+                                <button
+                                    class="btn btn-outline-warning"
+                                    hx-get="{{ url_for('groups.edit_group_modal', group_id=group.id) }}"
+                                    hx-target="#groupModalContent"
+                                    hx-swap="innerHTML"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#groupModal">
+                                    Ändra
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">
+                            Inga klasser skapade ännu.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>

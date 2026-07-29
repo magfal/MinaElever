@@ -1,0 +1,63 @@
+    <!-- Grupper -->
+            <table class="table table-hover mb-0">
+                <colgroup>
+                    <col style="width: 20%">
+                    <col style="width: 20%">
+                    <col style="width: 40%">
+                    <col style="width: 20%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Namn</th>
+                        <th>Elever</th>
+                        <th>Beskrivning</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if teams %}
+                        {% for team in teams %}
+                        <tr>
+                            <td>
+                                {{ team.name }}
+                            </td>
+                            <td>
+                                {{ team.students|length }}
+                            </td>
+                            <td>
+                                {{ team.description or "" }}
+                            </td>
+                            <td class="text-end">
+                                <button
+                                    class="btn btn-sm btn-outline-primary edit-team-btn"
+                                    data-id="{{ team.id }}"
+                                    data-name="{{ team.name }}"
+                                    data-next="groups.manage_groups"
+                                    data-description="{{ team.description or '' }}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#teamModal">
+                                    Ändra
+                                </button>
+                                {% if team.students|length == 0 %}
+                                        <form method="POST"
+                                            action="{{ url_for('groups.delete_team', team_id=team.id) }}"
+                                            class="d-inline"
+                                            onsubmit="return confirm('Ta bort gruppen permanent?');">
+                                            <button
+                                                class="btn btn-sm btn-outline-danger">
+                                                Ta bort
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                            Inga grupper skapade ännu.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>

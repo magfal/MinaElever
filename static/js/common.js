@@ -218,4 +218,103 @@ function closeModal() {
     }
 }
 
-//fetchJson()
+
+document.body.addEventListener(
+    "showToast",
+    function(event) {
+        const container =
+            document.getElementById("toastContainer");
+        const toastId =
+            "toast-" + Date.now();
+        container.insertAdjacentHTML(
+            "beforeend",
+            `
+            <div 
+                id="${toastId}"
+                class="toast"
+                role="alert"
+                data-bs-delay="5000">
+                <div class="toast-body">
+                    ${event.detail.message}
+                </div>
+            </div>
+            `
+        );
+        const toastElement =
+            document.getElementById(toastId);
+        const toast =
+            new bootstrap.Toast(
+                toastElement,
+                {delay: 5000}
+            );
+        toastElement.addEventListener(
+            "hidden.bs.toast",
+            function () {
+                toastElement.remove();
+            }
+        );
+        toast.show();
+    }
+);
+
+///// Nya funktioner HTMX/Alpine style
+
+window.addEventListener("close-modal", () => {
+
+    const modalElement = document.getElementById("groupModal");
+
+    console.log("Modal element:", modalElement);
+
+    const modal = bootstrap.Modal.getInstance(modalElement);
+
+    console.log("Modal instance:", modal);
+
+});
+
+window.addEventListener("close-modal", () => {
+
+    const modalElement = document.getElementById("groupModal");
+
+    if (!modalElement) {
+        console.log("Modal hittades inte");
+        return;
+    }
+
+    const modal = bootstrap.Modal.getInstance(modalElement);
+
+    if (modal) {
+        modal.hide();
+    } else {
+        console.log("Bootstrap-modalinstans saknas");
+    }
+
+});
+
+document.addEventListener("alpine:init", () => {
+    Alpine.data("toast", () => ({
+        visible: false,
+        message: "",
+        type: "success",
+        show(detail) {
+            this.message = detail.message;
+            this.type = detail.type || "success";
+            this.visible = true;
+            setTimeout(() => {
+                this.visible = false;
+            }, 5000);
+        }
+    }));
+});
+
+document.body.addEventListener("show-toast", e => console.log(e.detail))
+
+function closeGroupModal() {
+
+    const modal =
+        bootstrap.Modal.getInstance(
+            document.getElementById("groupModal")
+        );
+
+    modal.hide();
+
+}

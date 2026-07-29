@@ -88,41 +88,8 @@ document.querySelectorAll(".group-select").forEach(select => {
 
 });
 
-document.getElementById("newGroupBtn")
-    .addEventListener("click", function () {
-        newGroup(
-            this.dataset.next
-        );
-    });
 
-function newGroup(next) {
-    document.getElementById("groupForm").action = "/groups/create_group";
-    document.getElementById("groupModalTitle").innerText = "Ny klass";
-    document.getElementById("groupNext").value = next;
-    document.getElementById("groupId").value = "";
-    document.getElementById("groupName").value = "";
-    document.getElementById("groupArchived").checked = false;
-}
 
-document.querySelectorAll(".edit-group-btn").forEach(button => {
-    button.addEventListener("click", function () {
-        editGroup(
-            this.dataset.id,
-            this.dataset.name,
-            JSON.parse(this.dataset.active),
-            this.dataset.next
-        );
-    });
-});
-
-function editGroup(id, name, isActive, next) {
-    document.getElementById("groupForm").action = "/groups/edit_group";
-    document.getElementById("groupModalTitle").innerText = "Ändra klass";
-    document.getElementById("groupNext").value = next;
-    document.getElementById("groupId").value = id;
-    document.getElementById("groupName").value = name;
-    document.getElementById("groupArchived").checked = !isActive;
-}
 
 document.getElementById("newTeamBtn").addEventListener("click", function () {
     newTeam(
@@ -158,3 +125,14 @@ function editTeam(id, name, description, next) {
     document.getElementById("teamName").value = name;
     document.getElementById("teamDescription").value = description;
 }}
+
+function closeGroupModal() {
+    const modalElement =
+        document.getElementById("groupModal");
+    const modal =
+        bootstrap.Modal.getInstance(modalElement);
+    if (modal) {
+        document.activeElement.blur();
+        modal.hide();
+    }
+}

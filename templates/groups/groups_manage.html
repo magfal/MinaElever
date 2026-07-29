@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Hantera klasser och grupper</h2>
+        <div class="d-flex gap-2" id="manageGroups">
+            <button
+                class="btn btn-primary"
+                hx-get="{{ url_for('groups.new_group_modal') }}"
+                hx-target="#groupModalContent"
+                hx-swap="innerHTML"
+                data-bs-toggle="modal"
+                data-bs-target="#groupModal">
+                Ny klass
+            </button>
+            <button
+                class="btn btn-primary"
+                id="newTeamBtn"
+                type="button"
+                data-next="groups.manage_groups"
+                data-bs-toggle="modal"
+                data-bs-target="#teamModal">
+                Ny grupp
+            </button>
+        </div>
+    </div>
+</div>
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            Klasser
+        </h5>
+    </div>
+    <div class="card-body p-0" id="groupsTable">
+        {% include "groups/_groups_table.html" %}
+    </div>
+</div>
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            Grupper
+        </h5>
+    </div>
+    <div class="card-body p-0" id="teamsTable">
+        {% include "groups/_teams_table.html" %}
+    </div>
+</div>
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            Arkiverade klasser
+        </h5>
+    </div>
+    <div class="card-body p-0" id="archivedGroupsTable">
+        {% include "groups/_archived_groups_table.html" %}
+    </div>
+</div>
+<!--Popup-fönster (modaler)-->
+    {% include "groups/_group_modal.html" %}
+    {% include "groups/_team_modal.html" %}
+
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}

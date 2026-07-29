@@ -2,73 +2,92 @@
 
 <!DOCTYPE html>
 <html lang="sv">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Spåren{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('students.manage_students') }}">
-                <span class="fw-bold">Spåren</span>
-                <small class="d-block tagline">leder framåt</small>
-            </a>
-            <div class="navbar-nav gap-3">
-                <a class="nav-link" href="{{ url_for('students.manage_students') }}">
-                    Elever
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}Spåren{% endblock %}</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    </head>
+    <body class="bg-light">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+            <div class="container">
+                <a class="navbar-brand" href="{{ url_for('students.manage_students') }}">
+                    <span class="fw-bold">Spåren</span>
+                    <small class="d-block tagline">leder framåt</small>
                 </a>
-                <a class="nav-link" href="{{ url_for('groups.manage_groups') }}">
-                    Grupper
-                </a>
-                <a class="nav-link" href="{{ url_for('questions.create_question') }}">
-                    Frågor
-                </a>
-                <a class="nav-link" href="{{ url_for('templates.create_template') }}">
-                    Mallar
-                </a>
-                <a class="nav-link" href="{{ url_for('statistics.show_statistics') }}">
-                    Statistik
-                </a>
-                <a class="nav-link" href="{{ url_for('gamification.manage_rules') }}">
-                    Spelregler
-                </a> 
+                <div class="navbar-nav gap-3">
+                    <a class="nav-link" href="{{ url_for('students.manage_students') }}">
+                        Elever
+                    </a>
+                    <a class="nav-link" href="{{ url_for('groups.manage_groups') }}">
+                        Grupper
+                    </a>
+                    <a class="nav-link" href="{{ url_for('questions.create_question') }}">
+                        Frågor
+                    </a>
+                    <a class="nav-link" href="{{ url_for('templates.create_template') }}">
+                        Mallar
+                    </a>
+                    <a class="nav-link" href="{{ url_for('statistics.show_statistics') }}">
+                        Statistik
+                    </a>
+                    <a class="nav-link" href="{{ url_for('gamification.manage_rules') }}">
+                        Spelregler
+                    </a> 
+                </div>
             </div>
+        </nav>
+        <div 
+            id="toastContainer"
+            class="toast-container position-fixed top-0 start-0 p-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                    <div 
+                        class="toast show"
+                        role="alert"
+                        data-bs-delay="5000">
+                        <div class="toast-body">
+                            {{ message }}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endwith %}
         </div>
-    </nav>
-    <div 
-        id="toastContainer"
-        class="toast-container position-fixed top-0 start-0 p-3">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% for category, message in messages %}
-                <div 
-                    class="toast show"
-                    role="alert"
-                    data-bs-delay="5000">
-                    <div class="toast-body">
-                        {{ message }}
+        <div
+            x-data="toast"
+            @show-toast.window="show($event.detail)"
+            class="toast-container position-fixed top-0 start-0 p-3"
+            style="z-index:1100">
+            <div
+                class="alert shadow position-fixed top-0 start-0 m-3"
+                :class="{
+                    'alert-success': type === 'success',
+                    'alert-warning': type === 'warning',
+                    'alert-danger': type === 'danger',
+                    'alert-info': type === 'info'
+                }"
+                x-show="visible"
+                x-transition.opacity
+                role="alert">
+                <div class="d-flex">
+                    <div
+                        class="toast-body"
+                        x-text="message">
                     </div>
                 </div>
-            {% endfor %}
-        {% endwith %}
-    </div>
-    <main>
-        {% block content %}{% endblock %}
-    </main>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/groups.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/init.js') }}"></script>
-    <!--<script src="{{ url_for('static', filename='js/questions.js') }}"></script>
-    <!--<script src="{{ url_for('static', filename='js/templates.js') }}"></script>
-    <!--<script src="{{ url_for('static', filename='js/statistics.js') }}"></script>
-    <!-- Extra javascript för enskilda sidor -->
-    {% block scripts %}{% endblock %}
-  </body>
+            </div>
+        </div>
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/groups.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/init.js') }}"></script>
+        <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+        {% block scripts %}{% endblock %}
+    </body>
 </html>

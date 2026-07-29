@@ -1,9 +1,10 @@
 from flask import Blueprint
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, make_response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import Group, Team
+import json
 
 groups_bp = Blueprint("groups", __name__, url_prefix="/groups")       
 
@@ -32,39 +33,168 @@ def manage_groups():
         .order_by(Team.name)
     ).all()
     return render_template(
-        "groups_manage.html",
+        "groups/groups_manage.html",
         groups=groups,
         archived_groups=archived_groups,
         teams=teams
     )
 
-@groups_bp.route("/create_group", methods=["POST"])
+@groups_bp.get("/new_group")
+def new_group_modal():
+    return render_template(
+        "groups/_group_form.html",
+        group=None,
+        action=url_for("groups.create_group"),
+        title="Ny klass"    
+    )
+
+@groups_bp.get("/edit_group/<int:group_id>")
+def edit_group_modal(group_id):
+    group = db.session.get(Group, group_id)
+    if not group:
+        return "Klassen hittades inte", 404
+    return render_template(
+        "groups/_group_form.html",
+        group=group,
+        action=url_for("groups.edit_group", group_id=group.id),
+        title="Ändra klass"    
+    )
+
+@groups_bp.post("/create")
 def create_group():
-    name = request.form.get("name").strip()
-    next_page = request.form.get("next")
+    name = request.form.get("name", "").strip()
     existing = db.session.scalar(
         select(Group).where(Group.name == name)
     )
     if existing:
-        flash(
-            f"En klass med namnet {name} finns redan.",
-            "danger"
-        )
-        return redirect(
-            url_for("groups.manage_groups")
-        )
-    new_group = Group(
-        name=name
-    )
-    db.session.add(new_group)
+        response = make_response("")
+        response.headers["HX-Trigger"] = json.dumps({
+            "show-toast": {
+                "message": f"En klass med namnet {name} finns redan.",
+                "type": "success"
+            },
+            "close-modal": {}
+        })
+        return response
+    else:
+        new_group = Group(name=name, is_active=True)
+        db.session.add(new_group)
+        db.session.commit()
+    groups = db.session.scalars(
+        select(Group)
+        .where(Group.is_active == True)
+        ).all()
+    response = make_response(render_template(
+        "groups/_groups_table.html", 
+        groups=groups)) 
+    response.headers["HX-Trigger"] = json.dumps({
+        "show-toast":{
+            "message": f"{name} skapades",
+            "type": "success"
+            },
+            "close-modal": {}
+        })
+    return response
+
+@groups_bp.post("/edit/<int:group_id>")
+def edit_group(group_id):
+    group = db.session.get(Group, group_id)
+    if not group:
+        response = make_response("")
+        response.headers["HX-Trigger"] = json.dumps({
+            "show-toast": {
+                "message": f"Klassen finns inte i databasen.",
+                "type": "warning"
+            },
+            "close-modal": {}
+        })
+        return response
+    old_name = group.name
+    group.name = request.form["name"]
     db.session.commit()
-    flash(
-        f"Klassen {name} skapades.",
-        "success"
+    groups = db.session.scalars(
+        select(Group)
+        .where(Group.is_active == True)
+        ).all()
+    response = make_response(render_template(
+        "groups/_groups_table.html", 
+        groups=groups)) 
+    response.headers["HX-Trigger"] = json.dumps({
+        "show-toast": {
+            "message": f"{old_name} ändrades till {group.name}",
+            "type": "warning"
+        },
+        "close-modal": {}
+    })
+
+##### Gammalt nedan.
+'''
+@groups_bp.route("/create_group", methods=["POST"])
+def create_group():
+    name = request.form.get("name").strip()
+    existing = db.session.scalar(
+        select(Group).where(Group.name == name)
     )
-    if next_page in ["groups.manage_groups","students.manage"]:
-        return redirect(url_for(next_page))
-    return redirect(url_for("groups.manage_groups"))
+    if existing:
+        message = f"En klass med namnet {name} finns redan."
+        category = "danger"
+    else:
+        new_group = Group(
+            name=name
+        )
+        db.session.add(new_group)
+        db.session.commit()
+        message = f"Klassen {name} skapades."
+        category = "success"
+    # HTMX-anrop
+    if request.headers.get("HX-Request"):
+        groups = db.session.scalars(
+            select(Group)
+            .where(Group.is_active == True)
+        ).all()
+        response = make_response(
+            render_template(
+                "groups/_groups_table.html",
+                groups=groups
+            )
+        )
+        response.headers["HX-Trigger"] = json.dumps({
+            "showToast": {
+                "message": message,
+                "category": category
+            }
+        })
+        return response
+    # Vanligt POST-anrop
+    flash(message, category)
+    return redirect(
+        url_for("groups.manage_groups")
+    )
+
+@groups_bp.route("/new_group", methods=["GET"])
+def new_group_form():
+
+    return render_template(
+        "groups/_group_form.html",
+        group=None,
+        action=url_for("groups.create_group"),
+        title="Ny klass"    
+    )
+
+
+@groups_bp.route("/edit_group/<int:id>", methods=["GET"])
+def edit_group_form(id):
+
+    group = db.session.get(Group, id)
+    if not group:
+        return "Klassen hittades inte", 404
+    
+    return render_template(
+        "groups/_group_form.html",
+        group=group,
+        action=url_for("groups.edit_group"),
+        title="Ändra klass"
+    )
 
 @groups_bp.route("/edit_group", methods=["POST"])
 def edit_group():
@@ -114,13 +244,32 @@ def edit_group():
         return redirect(
             url_for("groups.manage_groups")
         )
-    flash(
-        f"Klassen {name} uppdaterades.",
-        "success"
-    )
-    if next_page in ["groups.manage_groups","students.manage"]:
-        return redirect(url_for(next_page))
-    return redirect(url_for("groups.manage_groups"))
+    message = f"Klassen {name} uppdaterades."
+    category = "success"
+
+
+    if request.headers.get("HX-Request"):
+
+        groups = db.session.scalars(
+            select(Group)
+            .where(Group.is_active == True)
+        ).all()
+
+        response = make_response(
+            render_template(
+                "groups/_groups_table.html",
+                groups=groups
+            )
+        )
+
+        response.headers["HX-Trigger"] = json.dumps({
+            "showToast": {
+                "message": message,
+                "category": category
+            }
+        })
+        return response
+'''
 
 @groups_bp.route("/delete_group/<int:group_id>", methods=["POST"])
 def delete_group(group_id):

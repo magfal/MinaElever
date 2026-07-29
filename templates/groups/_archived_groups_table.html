@@ -1,0 +1,59 @@
+    <!-- Arkiverade klasser -->
+            <table class="table table-hover mb-0">
+                <colgroup>
+                    <col style="width: 20%">
+                    <col style="width: 20%">
+                    <col style="width: 60%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Namn</th>
+                        <th>Elever</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if archived_groups %}
+                        {% for group in archived_groups %}
+                        <tr>
+                            <td>
+                                {{ group.name }}
+                            </td>
+                            <td>
+                                {{ group.students|length }}
+                            </td>
+                            <td class="text-end">
+                                <button
+                                    class="btn btn-sm btn-outline-primary edit-group-btn"
+                                    data-id="{{ group.id }}"
+                                    data-name="{{ group.name }}"
+                                    data-active="{{ group.is_active|tojson }}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#groupModal">
+                                    Ändra
+                                </button>
+                                {% if group.students|length == 0 %}
+                                    <form method="POST"
+                                        action="{{ url_for('groups.delete_group', group_id=group.id) }}"
+                                        class="d-inline"
+                                        onsubmit="return confirm('Ta bort klassen permanent?');">
+                                        <button
+                                            class="btn btn-sm btn-outline-danger">
+                                            Ta bort
+                                        </button>
+
+                                    </form>
+                                {% endif %}
+
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">
+                        Inga klasser arkiverade ännu.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
