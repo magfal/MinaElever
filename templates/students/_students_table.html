@@ -1,0 +1,134 @@
+<!-- Studenter -->
+<div class="sticky-table-container">
+    <table class="table table-hover mb-0 sticky-table">
+        <thead>
+            <tr>
+                <th>
+                    <input 
+                        type="checkbox" 
+                        id="selectAll">
+                </th>
+                <th class="sortable i">
+                    Namn
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Klass
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Senaste svar
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Inlogg
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th></th>
+                <th>
+                    <button
+                        class="btn btn-success btn-sm"
+                        name="type"
+                        value="assignment">
+                        Uppgift
+                    </button>
+                    <button
+                        class="btn btn-success btn-sm"
+                        name="type"
+                        value="observation">
+                        Observation
+                    </button>
+                    <button
+                        class="btn btn-success btn-sm"
+                        name="type"
+                        value="note">
+                        Notering
+                    </button>
+                </th>
+                <th class="text-end">
+                    <button
+                        class="btn btn-sm btn-primary"
+                        hx-get="{{ url_for('students.edit_students') }}"
+                        hx-target="#studentModalContent"
+                        hx-swap="innerHTML"
+                        hx-include=".student-checkbox:checked"
+                        data-bs-toggle="modal"
+                        data-bs-target="#studentModal">
+                        Ändra
+                    </button>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+        {% if students %}
+            {% for student in students %}
+                <tr data-name="{{student.name.lower()}}" data-group="{{student.group_id}}">
+                    <td>
+                        <input
+                            class="student-checkbox"
+                            type="checkbox"
+                            name="students_ids"
+                            value="{{ student.id }}">
+                        </td>
+                    <td>{{student.name}}</td>
+                    <td>{{student.group.name}}</td>
+                    <td>
+                        {% if student.last_response %}
+                            {{student.last_response.strftime("%Y-%m-%d %H:%M")}}
+                        {% else %}
+                            Aldrig
+                        {% endif %}
+                    </td>
+                    <td>{{student.login_code}}</td>
+                    <td>
+                        <a 
+                            href="{{url_for('dashboard.student_view', student_id=student.id)}}"
+                            class="btn btn-sm btn-outline-success">
+                            Student vy
+                        </a>
+                        <a 
+                            href="{{url_for('students.student_timeline', student_id=student.id)}}"
+                            class="btn btn-sm btn-outline-success">
+                            Progression
+                        </a>                           
+                    </td>
+                    <td>
+                        <a
+                            href="{{ url_for('assignments.add_assignment_post', student_id=student.id) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            Uppgift
+                        </a>
+                        <a
+                            href="{{ url_for('responses.add_observation', student_id=student.id) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            Observation
+                        </a>
+                        <a
+                            href="{{ url_for('responses.add_note', student_id=student.id) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            Notering
+                        </a>
+                    </td>
+                    <td class="text-end">
+                        <button
+                            class="btn btn-sm btn-outline-primary"
+                            hx-get="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
+                            hx-target="#studentModalContent"
+                            hx-swap="innerHTML"
+                            data-bs-toggle="modal"
+                            data-bs-target="#studentModal">
+                            Ändra
+                        </button>
+                    </td>
+                </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="8" class="text-center text-muted">
+                    Inga elever skapade ännu.
+                </td>
+            </tr>
+        {% endif %}
+        </tbody>
+    </table>
+</div>

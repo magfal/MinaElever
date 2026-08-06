@@ -1,0 +1,135 @@
+<form
+    data-modal-close
+    id="studentsForm"
+    hx-post="{{ action }}"
+    hx-target="#studentsTable"
+    hx-swap="innerHTML">
+    {% for student in students %}
+        <input 
+            type="hidden"
+            name="student_ids"
+            value="{{ student.id }}">
+    {% endfor %}
+    <div class="modal-header">
+        <h5 class="modal-title">
+            Ändra {{ students|length }} elever
+        </h5>
+        <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal">
+        </button>
+    </div>
+    <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">
+                Klass
+            </label>
+            <select
+                class="form-select"
+                name="group_id">
+                <option value="">
+                    Behåll nuvarande
+                </option>
+                {% for group in groups %}
+                    <option value="{{ group.id }}">
+                        {{ group.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Nuvarande grupptillhörigheter</label>
+            <div id="studentTeams">
+                {% for team in current_teams %}
+                    <button
+                        type="button"
+                        class="badge text-bg-primary border-0"
+                        hx-post="{{ url_for('students.edit_students') }}"
+                        hx-target="#studentModalContent"
+                        hx-swap="innerHTML"
+                        hx-include="#studentsForm"
+                        hx-vals='{
+                            "action": "remove_team",
+                            "team_id": "{{ team.id }}"
+                        }'>
+                        {{ team.name }} ×
+                    </button>
+                {% endfor %}
+
+                {% for team in current_teams %}
+                    <input
+                        type="hidden"
+                        name="team_ids"
+                        value="{{ team.id }}">
+                {% endfor %}
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">
+                Lägg till grupp
+            </label>
+            <div class="input-group">
+                <select
+                    class="form-select"
+                    id="teamSelect",
+                    name="team_id">
+                    {% for team in teams %}
+                        <option value="{{ team.id }}">
+                            {{ team.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    hx-post="{{ url_for('students.edit_students') }}"
+                    hx-target="#studentModalContent"
+                    hx-swap="innerHTML"
+                    hx-include="#teamSelect, #studentTeams"
+                    hx-vals='{
+                        "action": "add_team"
+                    }'>
+                    +
+                </button>
+            </div>
+        </div>
+        <div class="form-check form-switch mb-3">
+            <input
+                class="form-check-input"
+                type="checkbox"
+                name="new_code"
+                id="newCode">
+            <label
+                class="form-check-label"
+                for="newCode">
+                Generera nya koder
+            </label>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">
+                Aktivitet
+            </label>
+            <select
+                class="form-select"
+                name="active_action">
+                <option value="">
+                    Behåll nuvarande
+                </option>
+                <option value="activate">
+                    Aktivera
+                </option>
+                <option value="deactivate">
+                    Arkivera
+                </option>
+            </select>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button
+            type="submit"
+            class="btn btn-primary">
+            Spara
+        </button>
+    </div>
+</form>

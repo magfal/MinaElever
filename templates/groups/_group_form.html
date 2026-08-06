@@ -1,38 +1,37 @@
-            <form
-                id="groupForm"
-                hx-post="{{ action }}"
-                hx-target="#groupsTable"
-                hx-swap="outerHTML"
-                hx-on:after-request="if(event.detail.successful) closeGroupModal()">
-                <div class="modal-header">
-                    <h5 class="modal-title">{{ title }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Namn</label>
-                        <input class="form-control" name="name" value="{{ group.name if group else '' }}">
-                    </div>
-                    <div class="form-check">
-                        <label class="form-check-label">Arkiverad</label>
-                        <input
-                            class="form-check-input"
-                            type="checkbox"
-                            name="archived"
-                            {% if group and not group.is_active %}
-                            checked
-                            {% endif %}>
-                    </div>
-                </div>    
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        Avbryt
-                    </button>
-                    <button type="submit" class="btn btn-primary" id="saveGroupBtn">
-                        Spara
-                    </button>
-                </div>
-            </form>
+<form  
+    id="groupForm"
+    data-modal-close
+    hx-post="{{ action }}"
+    hx-target="#groupsTable"
+    hx-swap="innerHTML">
+    <div class="modal-header">
+        <h5 class="modal-title">{{ title }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">Namn</label>
+            <input 
+                class="form-control" 
+                name="name" 
+                value="{{ group.name if group else '' }}">
+        </div>
+        <div class="form-check">
+            <label class="form-check-label">Arkivera</label>
+            <input 
+                class="form-check-input" 
+                type="checkbox" 
+                name="archived" 
+                value="true"
+                {% if group and not group.is_active %}checked{% endif %}>
+        </div>
+    </div>    
+    <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">
+            Spara
+        </button>
+    </div>
+</form>
 
 
         

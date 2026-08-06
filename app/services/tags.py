@@ -8,5 +8,7 @@ def get_or_create_tag(tag_name):
 
     if not tag:
         tag = Tag(name=tag_name)
+        db.session.add(tag)
+        db.session.commit()
 
     return tag

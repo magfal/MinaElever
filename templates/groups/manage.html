@@ -1,7 +1,6 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container-fluid px-4">
+<div class="container-fluid px-4 py-3">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Hantera klasser och grupper</h2>
@@ -17,9 +16,9 @@
             </button>
             <button
                 class="btn btn-primary"
-                id="newTeamBtn"
-                type="button"
-                data-next="groups.manage_groups"
+                hx-get="{{ url_for('groups.new_team_modal') }}"
+                hx-target="#teamModalContent"
+                hx-swap="innerHTML"
                 data-bs-toggle="modal"
                 data-bs-target="#teamModal">
                 Ny grupp

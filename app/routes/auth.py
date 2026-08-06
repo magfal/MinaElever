@@ -15,9 +15,9 @@ from app.extensions import db
 from app.models import InputType, TagType, MediaType, TemplateType, PointType
 from app.models import QuestionTemplateLink
 from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
-from app.utils.student_utils import generate_student_code
-from app.auth.service import create_remember_token 
+from app.services.auth import create_remember_token, redirect_after_login, generate_code
 from flask import current_app
+from app.services.htmx import toast
 
 auth_bp = Blueprint(
     "auth", 
@@ -25,31 +25,51 @@ auth_bp = Blueprint(
     url_prefix="/auth"
 )
 
-# Route för login-sidan (elever loggar in med sin unika kod, genereras med "/admin/add_students".
+@auth_bp.route("/bootstrap", methods=["GET", "POST"])
+def bootstrap():
+    # Kontrollera om en lärare redan finns
+    existing_teacher = db.session.scalar(select(Teacher))
+    if existing_teacher:
+        return "Bootstrap redan genomförd", 403
+    if request.method == "POST":
+        name = request.form.get("name")
+        login_code = request.form.get("login_code")
+        teacher = Teacher(
+            name=name,
+            login_code=login_code
+        )
+        db.session.add(teacher)
+        db.session.commit()
+        flash("Första läraren skapad. Du kan nu logga in.", "success")
+        return redirect(url_for("auth.login"))
+    return render_template("auth/bootstrap.html")
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-    if g.student:
-        return redirect(url_for("students.index"))
+    if g.user:
+        return redirect_after_login(g.user)
     if request.method == "POST":
         code = request.form.get("code", "").strip()
-        print(code)
-        student = db.session.scalar(
-            select(Student).where(Student.access_code == code)
+        user = db.session.scalar(
+            select(User).where(User.login_code == code)
         )
-        if not student:
-            flash("Ogiltig kod", "danger")
-            return render_template("login.html")
+        if not user:
+            response = make_response(render_template(
+                "login.html"))
+            toast(response, "Ogiltig kod", "danger")
+            return response
         session.clear()
-        session["student_id"] = student.id
+        session["user_id"] = user.id
+        print(f'User_id: session.get("user_id")')
         session.permanent = True
-        token = create_remember_token(student)
         response = make_response(
-            redirect(url_for("students.index"))
+            redirect_after_login(user)
         )
+        token = create_remember_token(user)
         response.set_cookie(
             "remember_token",
             token,
-            max_age=60 * 60 * 24 * 180,
+            max_age=60*60*24*180,
             httponly=True,
             secure=not current_app.debug,
             samesite="Lax",

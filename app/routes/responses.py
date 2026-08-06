@@ -15,8 +15,7 @@ from app.extensions import db
 from app.models import InputType, TagType, MediaType, TemplateType, PointType
 from app.models import QuestionTemplateLink
 from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
-from app.utils.student_utils import generate_student_code
-from app.auth.service import create_remember_token 
+from app.services.auth import generate_code, create_remember_token
 from flask import current_app
 
 responses_bp = Blueprint(

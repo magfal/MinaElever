@@ -46,7 +46,7 @@ Nästan klar.
 Kvar:
 
 fixa länkar
-bygga studentvy
+bygga vyn för student
 bygga progression
 
 Det här är kanske 10–15 % kvar av den delen.

@@ -1,0 +1,117 @@
+<form
+    id="studentForm"
+    data-modal-close
+    hx-post="{{ action }}"
+    hx-target="#studentsTable"
+    hx-swap="innerHTML">
+    <div class="modal-header">
+        <h5 class="modal-title">Ändra elev</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-8">
+                <label class="form-label">Namn</label>
+                <input
+                    class="form-control"
+                    name="name"
+                    value="{{ student.name if student else '' }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Klass</label>
+                <select
+                    class="form-select"
+                    id="studentGroup"
+                    name="group_id">
+                    {% for group in groups %}
+                        <option value="{{ group.id }}"
+                            {% if student.group_id == group.id %}selected{% endif %}>
+                            {{ group.name }}
+                        </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Elevens grupper</label>
+            {% if student.teams %}
+                <div class="d-flex flex-wrap gap-2">
+                    {% for team in student.teams %}
+                        <button
+                            type="button"
+                            class="badge text-bg-primary border-0"
+                            hx-post="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
+                            hx-target="#studentModalContent"
+                            hx-swap="innerHTML"
+                            hx-vals='{
+                                "action": "remove_team",
+                                "team_id": "{{ team.id }}"
+                            }'>
+                            {{ team.name }} ×
+                        </button>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-muted">Eleven tillhör inga grupper.</div>
+            {% endif %}
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Tillgängliga grupper</label>
+            <div class="input-group">
+                <select
+                    class="form-select"
+                    id="teamSelect"
+                    name="team_id">
+                    {% for team in teams %}
+                        <option value="{{ team.id }}"
+                            {% if student.team_id == team.id %}selected{% endif %}>
+                            {{ team.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    hx-post="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
+                    hx-target="#studentModalContent"
+                    hx-swap="innerHTML"
+                    hx-include="#teamSelect"
+                    hx-vals='{"action": "add_team"}'>
+                    +
+                </button>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Inloggningskod</label>
+            <div class="input-group">
+                <input
+                    class="form-control"
+                    name="login_code"
+                    value="{{ student.login_code if student else '' }}">
+                <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    hx-post="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
+                    hx-target="#studentModalContent"
+                    hx-swap="innerHTML"
+                    hx-vals='{"action": "new_code"}'>
+                    Generera ny kod
+                </button>
+            </div>
+        </div>
+        <div class="mb-3">     
+            <div class="form-check form-switch">
+                <label class="form-check-label">Elev ej aktiv/aktiv</label>
+                <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    name="is_active" 
+                    {% if student and student.is_active %}checked{% endif %}>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">
+                Spara
+            </button>
+        </div>
+    </div>
+</form>

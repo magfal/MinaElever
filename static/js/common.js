@@ -1,70 +1,4 @@
-function initToasts() {
-    document
-        .querySelectorAll(".toast")
-        .forEach(function (toastEl) {
-            const delay =
-                Number(toastEl.dataset.delay || 5000);
-            const toast =
-                new bootstrap.Toast(toastEl, {
-                    delay: delay
-                });
-            toast.show();
-        });
-}
-
-function rememberInput(id) {
-    const element = document.getElementById(id);
-    if (!element) return;
-    const key = "remember_" + id;
-    // Återställ
-    const saved = localStorage.getItem(key);
-    if (saved !== null) {
-        element.value = saved;
-    }
-    // Spara
-    element.addEventListener("input", () => {
-        localStorage.setItem(key, element.value);
-    });
-    element.addEventListener("change", () => {
-        localStorage.setItem(key, element.value);
-    });
-}
-
-function rememberSelectedStudents(name) {
-    const key = "selected_" + name;
-    // Återställ efter omladdning
-    const saved = JSON.parse(
-        sessionStorage.getItem(key) || "[]"
-    );
-    document
-        .querySelectorAll(`input[name="${name}"]`)
-        .forEach(cb => {
-            if (saved.includes(cb.value)) {
-                cb.checked = true;
-            }
-        });
-    // Uppdatera innan formulär skickas
-    document
-        .querySelectorAll("form")
-        .forEach(form => {
-            form.addEventListener(
-                "submit",
-                function() {
-                    const selected = [
-                        ...document.querySelectorAll(
-                            `input[name="${name}"]:checked`
-                        )
-                    ]
-                    .map(cb => cb.value);
-                    sessionStorage.setItem(
-                        key,
-                        JSON.stringify(selected)
-                    );
-                }
-            );
-        });
-}
-
+// Har koll på checkboxarna
 function setupSelectAll(selectAllId, checkboxName, tableId) {
     const selectAll = document.getElementById(selectAllId);
     if (!selectAll) return;
@@ -107,188 +41,120 @@ function setupSelectAll(selectAllId, checkboxName, tableId) {
     updateSelectAll();
 }
 
-function setupTableFilter(options) {
-    const searchInput = document.getElementById(options.searchId);
-    const filters = options.filters || [];
-    if (!searchInput) return;
-    function filterTable() {
-        const search = searchInput.value.toLowerCase();
-        document
-            .querySelectorAll(`#${options.tableId} tbody tr`)
-            .forEach(row => {
-                let visible = true;
-
-                // Sökning
-                if (search) {
-                    const name = row.dataset.name || "";
-                    if (!name.includes(search)) {
-                        visible = false;
-                    }
-                }
-
-                // Dropdown-filter
-                filters.forEach(filter => {
-                    const element =
-                        document.getElementById(filter.id);
-
-                    if (!element) return;
-                    const value = element.value;
-                    if (
-                        value &&
-                        row.dataset[filter.data] !== value
-                    ) {
-                        visible = false;
-                    }
-                });
-                row.style.display =
-                    visible ? "" : "none";
-
-            });
-        // Uppdatera "markera alla"
-        if (typeof updateSelectAll === "function") {
-            updateSelectAll();
-        }
-    }
-
-    searchInput.addEventListener(
-        "input",
-        filterTable
-    );
-
-    filters.forEach(filter => {
-        const element =
-            document.getElementById(filter.id);
-        if (element) {
-            element.addEventListener(
-                "change",
-                filterTable
-            );
-        }
+// Hanterar markering av elever i students/manage
+function setupStudentSelection() {
+    const selectAll = document.getElementById("selectAll");
+    const checkboxes = document.querySelectorAll(".student-checkbox");
+    if (!selectAll) return;
+    selectAll.addEventListener("change", () => {
+        checkboxes.forEach(cb => {
+            cb.checked = selectAll.checked;
+        });
     });
-    // Kör direkt vid sidladdning
-    filterTable();
-    if (typeof updateSelectAll === "function") {
-        updateSelectAll();
-    }
+
 }
 
-function showMessage(message, category="success") {
+// sortera elevtabellen i students.manage baserat på kolum
+function setupTableSorting() {
+    document.querySelectorAll(".sortable").forEach(header => {
+        header.addEventListener("click", () => {
+            const table = header.closest("table");
+            const tbody = table.tBodies[0];
+            const rows = Array.from(tbody.rows);
+            const column = header.cellIndex;
+            // Växla riktning
+            const ascending = header.dataset.sort !== "asc";
+            header.dataset.sort = ascending ? "asc" : "desc";
+            // Återställ övriga rubriker
+            table.querySelectorAll(".sortable").forEach(th => {
+                if (th !== header) {
+                    delete th.dataset.sort;
+                }
+            });
+            // Återställ alla ikoner
+            table.querySelectorAll(".sortable i").forEach(icon => {
+                icon.className = "bi bi-chevron-expand ms-1";
+            });
+            // Sätt ikon på den klickade kolumnen
+            const icon = header.querySelector("i");
+            icon.className = ascending
+                ? "bi bi-caret-down-fill ms-1"
+                : "bi bi-caret-up-fill ms-1";
+            rows.sort((a, b) => {
+                const aValue = a.cells[column].textContent.trim();
+                const bValue = b.cells[column].textContent.trim();
+                return ascending
+                    ? aValue.localeCompare(bValue, "sv")
+                    : bValue.localeCompare(aValue, "sv");
+            });
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+}   
 
-    const container =
-        document.getElementById("toastContainer");
-
-    if (!container) return;
-
-    const toastElement = document.createElement("div");
-
-    toastElement.className =
-        "toast";
-
-    toastElement.setAttribute(
-        "role",
-        "alert"
-    );
-
-    toastElement.innerHTML = `
-        <div class="toast-body">
-            ${message}
-        </div>
-    `;
-
-    container.appendChild(toastElement);
-
-    const toast =
-        new bootstrap.Toast(
-            toastElement,
-            {
-                delay:5000
-            }
-        );
-
-    toast.show();
-}
-
-function closeModal() {
-    const modalElement =
-        document.getElementById("studentModal");
-    const modal =
-        bootstrap.Modal.getInstance(modalElement);
-    if (modal) {
-        modal.hide();
-    }
-}
-
-
-document.body.addEventListener(
-    "showToast",
-    function(event) {
-        const container =
-            document.getElementById("toastContainer");
-        const toastId =
-            "toast-" + Date.now();
-        container.insertAdjacentHTML(
-            "beforeend",
-            `
-            <div 
-                id="${toastId}"
-                class="toast"
-                role="alert"
-                data-bs-delay="5000">
-                <div class="toast-body">
-                    ${event.detail.message}
-                </div>
-            </div>
-            `
-        );
-        const toastElement =
-            document.getElementById(toastId);
-        const toast =
-            new bootstrap.Toast(
-                toastElement,
-                {delay: 5000}
-            );
-        toastElement.addEventListener(
-            "hidden.bs.toast",
-            function () {
-                toastElement.remove();
-            }
-        );
-        toast.show();
+// Kör checkbox och kolumnsortering vid sidstart
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+        setupStudentSelection();
+        setupTableSorting();
     }
 );
 
-///// Nya funktioner HTMX/Alpine style
+// Kör checkbox och kolumnsortering vid HTMX-anrop
+document.body.addEventListener(
+    "htmx:afterSwap",
+    (event) => {
+        if (event.target.id === "studentsTable") {
+            setupStudentSelection();
+            setupTableSorting();
+        }
+    }
+);
 
-window.addEventListener("close-modal", () => {
-
-    const modalElement = document.getElementById("groupModal");
-
-    console.log("Modal element:", modalElement);
-
-    const modal = bootstrap.Modal.getInstance(modalElement);
-
-    console.log("Modal instance:", modal);
-
+// Blura ett element när modalen ska stängas ( för att det ska funka )
+document.addEventListener("hide.bs.modal", (event) => {
+    if (event.target.contains(document.activeElement)) {
+        document.activeElement.blur();
+    }
 });
 
-window.addEventListener("close-modal", () => {
 
-    const modalElement = document.getElementById("groupModal");
-
-    if (!modalElement) {
-        console.log("Modal hittades inte");
-        return;
-    }
-
+document.body.addEventListener("htmx:afterRequest", (event) => {
+    if (!event.detail.successful) return;
+    const element = event.target;
+    if (!element.matches("[data-modal-close]")) return;
+    const modalElement = element.closest(".modal");
+    if (!modalElement) return;
     const modal = bootstrap.Modal.getInstance(modalElement);
-
     if (modal) {
         modal.hide();
-    } else {
-        console.log("Bootstrap-modalinstans saknas");
     }
-
 });
+
+// Flask flash
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".toast").forEach(toastElement => {
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+    });
+});
+
+document.querySelectorAll('.alert[data-auto-dismiss]').forEach(alert => {
+    setTimeout(() => {
+        alert.remove();
+    }, 4000);
+});
+
+// Alpine-toast
+document.body.addEventListener("showToast", (event) => {
+    window.dispatchEvent(
+        new CustomEvent("toast", {
+            detail: event.detail
+        })
+    );
+});
+
 
 document.addEventListener("alpine:init", () => {
     Alpine.data("toast", () => ({
@@ -297,24 +163,11 @@ document.addEventListener("alpine:init", () => {
         type: "success",
         show(detail) {
             this.message = detail.message;
-            this.type = detail.type || "success";
+            this.type = detail.level;
             this.visible = true;
             setTimeout(() => {
                 this.visible = false;
-            }, 5000);
+            }, detail.duration);
         }
     }));
 });
-
-document.body.addEventListener("show-toast", e => console.log(e.detail))
-
-function closeGroupModal() {
-
-    const modal =
-        bootstrap.Modal.getInstance(
-            document.getElementById("groupModal")
-        );
-
-    modal.hide();
-
-}
