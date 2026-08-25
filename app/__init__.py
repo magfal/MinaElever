@@ -19,8 +19,10 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, render_template
+from sqlalchemy.exc import SQLAlchemyError
 from .services.auth import register_auth
 from .extensions import db
+
 load_dotenv()
 
 def configure_app(app):
@@ -70,6 +72,7 @@ def register_blueprints(app):
     from .routes.students import students_bp
     from .routes.groups import groups_bp
     from .routes.questions import questions_bp
+    from .routes.tags import tags_bp
     from .routes.templates import templates_bp
     from .routes.assignments import assignments_bp
     from .routes.responses import responses_bp
@@ -80,6 +83,7 @@ def register_blueprints(app):
     app.register_blueprint(students_bp)
     app.register_blueprint(groups_bp)
     app.register_blueprint(questions_bp)
+    app.register_blueprint(tags_bp)
     app.register_blueprint(templates_bp)
     app.register_blueprint(assignments_bp)
     app.register_blueprint(responses_bp)
@@ -94,15 +98,28 @@ def register_commands(app):
             print("Databasen är skapad!")
 
 def register_error_handlers(app):
+    @app.errorhandler(SQLAlchemyError)
+    def handle_sqlalchemy_error(error):
+        db.session.rollback()
+        return (
+            render_template(
+                "errors/db_error.html",
+                error=error
+            ),
+            500,
+        )
+    
     @app.errorhandler(404)
     def page_not_found(error):
         return render_template(
             "errors/404.html"
         ), 404
+    
     @app.errorhandler(500)
     def internal_server_error(error):
         return render_template(
-            "errors/500.html"
+            "errors/500.html",
+            error=error
         ), 500
     
 def create_app():

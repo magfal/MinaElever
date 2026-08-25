@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% if question %}
+    {% set page_title = "Ändra fråga" %}
+{% else %}
+    {% set page_title = "Ny fråga" %}
+{% endif %}
+
+{% block title %}
+    {{ page_title }}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-3">
+    <!-- SIDHUVUD -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            {{ page_title }}
+        </h2>
+        <div class="d-flex gap-2">
+            {% if question %}
+                <button
+                    type="submit"
+                    class="btn btn-primary">
+                    Kopiera fråga
+                </button>
+                <button
+                    type="submit"
+                    class="btn btn-primary">
+                    Ändra fråga
+                </button>
+            {% else %}
+                <button
+                    type="submit"
+                    class="btn btn-primary">
+                    Spara fråga
+                </button>
+            {% endif %}
+        </div>
+    </div>    
+    <!-- FORMULÄR -->
+    <form
+        method="post"
+        action="{% if question %}
+                    {{ url_for(
+                        'questions.update_question',
+                        question_id=question.id
+                    ) }}
+                {% else %}
+                    {{ url_for('questions.create_question') }}
+                {% endif %}">
+        <!-- FRÅGA -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    Fråga
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label
+                        for="questionText"
+                        class="form-label">
+                        Frågetext
+                    </label>
+                    <textarea
+                        id="questionText"
+                        name="text"
+                        class="form-control"
+                        rows="4"
+                        required>{{ question.text if question else "" }}</textarea>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label
+                        for="questionType"
+                        class="form-label">
+                        Svarstyp
+                    </label>
+                    <select
+                        id="questionType"
+                        name="question_type"
+                        class="form-select"
+                        required>
+                        {% for question_type in question_types %}
+                            <option
+                                value="{{ question_type.name }}"
+                                {% if question
+                                    and question.question_type == question_type %}
+                                    selected
+                                {% endif %}>
+                                {{ question_type.value }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        <!-- TAGGAR -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    Taggar
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <!-- ÄMNE -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label
+                            for="subjectTags"
+                            class="form-label">
+                            Ämne
+                        </label>
+                        <select
+                            id="subjectTags"
+                            name="tag_ids"
+                            class="form-select tomselect-create">
+                            <option value="">
+                                Välj ämne
+                            </option>
+                            {% for tag in tags %}
+                                {% if tag.tag_type.name == "SUBJECT" %}
+                                    <option
+                                        value="{{ tag.id }}"
+                                        {% if question
+                                            and tag in question.tags %}
+                                            selected
+                                        {% endif %}>
+                                        {{ tag.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- OMRÅDE -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label
+                            for="areaTags"
+                            class="form-label">
+                            Område
+                        </label>
+                        <select
+                            id="areaTags"
+                            name="tag_ids"
+                            class="form-select tomselect-create">
+                            <option value="">
+                                Välj område
+                            </option>
+                            {% for tag in tags %}
+                                {% if tag.tag_type.name == "AREA" %}
+                                    <option
+                                        value="{{ tag.id }}"
+                                        {% if question
+                                            and tag in question.tags %}
+                                            selected
+                                        {% endif %}>
+                                        {{ tag.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- KORTLEK -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label
+                            for="deckTags"
+                            class="form-label">
+                            Kortlek
+                        </label>
+                        <select
+                            id="deckTags"
+                            name="tag_ids"
+                            class="form-select tomselect-create">
+                            <option value="">
+                                Välj kortlek
+                            </option>
+                            {% for tag in tags %}
+                                {% if tag.tag_type.name == "DECK" %}
+                                    <option
+                                        value="{{ tag.id }}"
+                                        {% if question
+                                            and tag in question.tags %}
+                                            selected
+                                        {% endif %}>
+                                        {{ tag.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- ALLMÄN -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label
+                            for="otherTags"
+                            class="form-label">
+                            Allmän
+                        </label>
+                        <select
+                            id="otherTags"
+                            name="tag_ids"
+                            class="form-select tomselect-create">
+                            <option value="">
+                                Välj tagg
+                            </option>
+                            {% for tag in tags %}
+                                {% if tag.tag_type.name == "OTHER" %}
+                                    <option
+                                        value="{{ tag.id }}"
+                                        {% if question
+                                            and tag in question.tags %}
+                                            selected
+                                        {% endif %}>
+                                        {{ tag.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- SVAR -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    Svar
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-muted">
+                    Svarsfält för den valda svarstypen kommer här.
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}

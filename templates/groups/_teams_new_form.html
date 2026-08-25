@@ -1,0 +1,27 @@
+<form
+    id="teamsForm"
+    data-modal-close
+    hx-post="{{ action }}"
+    hx-target="#teamsTable"
+    hx-swap="innerHTML">
+    <div class="modal-header">
+        <h5 class="modal-title">{{ title }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="mb-3">
+            <label for="team_list">En grupp per rad (ev. förklaring efter ett kommatecken):</label>
+            <textarea 
+                class="form-control"     
+                name="team_list" 
+                id="team_list" 
+                rows="5"                 
+                style="white-space: pre-wrap; overflow-y: scroll;"></textarea>
+        </div>
+    </div>    
+    <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">
+            Spara
+        </button>
+    </div>
+</form>

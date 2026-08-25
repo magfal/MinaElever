@@ -42,6 +42,7 @@
                             hx-post="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
                             hx-target="#studentModalContent"
                             hx-swap="innerHTML"
+                            hx-include="#studentForm"
                             hx-vals='{
                                 "action": "remove_team",
                                 "team_id": "{{ team.id }}"
@@ -55,26 +56,25 @@
             {% endif %}
         </div>
         <div class="mb-3">
-            <label class="form-label">Tillgängliga grupper</label>
+            <label class="form-label">Lägg till grupp (ev. förklaring efter kommatecken)</label>
             <div class="input-group">
                 <select
-                    class="form-select"
-                    id="teamSelect"
-                    name="team_id">
+                    class="form-select tomselect-create"
+                    name="team">
+                    <option value=""></option>
                     {% for team in teams %}
-                        <option value="{{ team.id }}"
-                            {% if student.team_id == team.id %}selected{% endif %}>
+                        <option value="{{ team.id }}">
                             {{ team.name }}
                         </option>
                     {% endfor %}
                 </select>
                 <button
                     type="button"
-                    class="btn btn-outline-primary"
+                    class="btn btn-outline-primary add-tomselect-btn"
                     hx-post="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
                     hx-target="#studentModalContent"
                     hx-swap="innerHTML"
-                    hx-include="#teamSelect"
+                    hx-include="#studentForm"
                     hx-vals='{"action": "add_team"}'>
                     +
                 </button>

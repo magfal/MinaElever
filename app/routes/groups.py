@@ -37,31 +37,45 @@ def manage():
 @groups_bp.get("/create_group")
 def new_group_modal():
     return render_template(
-        "groups/_group_form.html",
+        "groups/_groups_new_form.html",
         group=None,
         action=url_for("groups.create_group"),
-        title="Ny klass"    
+        title="Nya klasser"    
     )
 
 @groups_bp.post("/create_group")
 def create_group():
-    name = request.form.get("name", "").strip()
+    group_list = request.form.get("group_list", "").strip()
     archived = request.form.get("archived") is not None
-    if not name:
+    if not group_list:
         response = make_response("")
-        toast(response, "Namnet får inte var tomt", "warning", reswap="none")
+        toast(response, "Klasslistan var tom!", "warning", reswap="none")
         return response
+    group_names = [
+        name.strip()
+        for name in group_list.split("\n")
+        if name.strip()]
+    existing_groups = db.session.scalars(select(Group.name)).all()
     try:
-        new_group = Group(author_id=g.user.id, name=name, is_active=not archived)
-        db.session.add(new_group)
+        for name in group_names:
+            if name in existing_groups:
+                db.session.rollback()
+                response = make_response("")
+                toast(response, f"Klassen {name} finns redan.", "warning", reswap="none")
+                return response
+            db.session.add(
+                Group(
+                    author_id=g.user.id,
+                    name=name,
+                    is_active=not archived))
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         response = make_response("")
-        toast(response, f"Klassen {name} finns redan.", "warning", reswap="none")
+        toast(response, f"En klass finns redan.", "warning", reswap="none")
         return response
     if archived:
-        flash(f"Klassen {name} skapades", "success")
+        flash(f"Klass {",".join(group_names)} skapades (arkiverades)", "warning")
         response = make_response("", 204)
         response.headers["HX-Redirect"] = url_for("groups.manage")
         return response
@@ -74,7 +88,7 @@ def create_group():
     response = make_response(render_template(
         "groups/_groups_table.html", 
         groups=groups)) 
-    toast(response, f"Klassen {name} skapades")
+    toast(response, f"Klass {",".join(group_names)} skapades")
     return response
     
 @groups_bp.get("/edit_group/<int:group_id>")
@@ -85,7 +99,7 @@ def edit_group_modal(group_id):
         toast(response,f"Klassen hittades inte.", "warning")
         return response
     return render_template( 
-        "groups/_group_form.html",
+        "groups/_group_change_form.html",
         group=group,
         action=url_for("groups.edit_group", group_id=group.id),
         title="Ändra klass"    
@@ -155,28 +169,48 @@ def delete_group(group_id):
 @groups_bp.get("/create_team")
 def new_team_modal():
     return render_template(
-        "groups/_team_form.html",
+        "groups/_teams_new_form.html",
         team=None,
         action=url_for("groups.create_team"),
-        title="Ny grupp"    
+        title="Nya grupper"    
     )
 
 @groups_bp.post("/create_team")
 def create_team():
-    name = request.form.get("name", "").strip()
-    description = request.form.get("description", "").strip()
-    if not name:
-        response = make_response("")
-        toast(response, "Namnet får inte var tomt", "warning", reswap="none")
+    team_list = request.form.get("team_list", "").strip()
+    if not team_list:
+        flash("Grupplistan får inte var tomt", "warning")
+        response = make_response("", 204)
+        response.headers["HX-Redirect"] = url_for("groups.manage")
         return response
+    team_names = []
+    for line in team_list.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if "," in line:
+            name, description = line.split(",", 1)
+            team_names.append((name.strip(), description.strip()))
+        else:
+            team_names.append((line, ""))
+    existing_names = db.session.scalars(select(Team.name)).all()
     try:
-        new_team = Team(author_id=g.user.id, name=name, description=description)
-        db.session.add(new_team)
+        for (name, description) in team_names:
+            if name in existing_names:
+                db.session.rollback()
+                response = make_response("")
+                toast(response, f"Gruppen {name} finns redan.", "warning", reswap="none")
+                return response
+            db.session.add(
+                Team(
+                    author_id=g.user.id,
+                    name=name,
+                    description=description))
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         response = make_response("")
-        toast(response, f"Gruppen {name} finns redan.", "warning", reswap="none")
+        toast(response, f"En klass finns redan", "warning", reswap="none")
         return response
     teams = db.session.scalars(
         select(Team)
@@ -186,18 +220,18 @@ def create_team():
     response = make_response(render_template(
         "groups/_teams_table.html", 
         teams=teams)) 
-    toast(response, f"Gruppen {name} skapades")
+    toast(response, f"Gruppen {", ".join(name for name, _ in team_names)} skapades")
     return response
 
 @groups_bp.get("/edit_team/<int:team_id>")
-def edit_team_modal(team_id):
+def edit_team_modal(team_id):    
     team = db.session.get(Team, team_id)
     if not team:
         response = make_response("")
         toast(response,f"Gruppen hittades inte.", "warning")
         return response
     return render_template( 
-        "groups/_team_form.html",
+        "groups/_team_change_form.html",
         team=team,
         action=url_for("groups.edit_team", team_id=team.id),
         title="Ändra Grupp"    

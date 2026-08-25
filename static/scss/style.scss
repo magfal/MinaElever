@@ -1,79 +1,110 @@
-// Kör kommandet nedan i terminalen för att uppdaterar css.
+// ============================================================
+// style.scss
+// Huvudfil för applikationens SCSS
+//
+// Den här filen:
+// 1. Importerar externa resurser
+// 2. Ställer in Bootstraps färger och typsnitt
+// 3. Importerar Bootstrap
+// 4. Innehåller övergripande/global egen styling
+// 5. Importerar separata SCSS-filer för komponenter
+//
+// SCSS kompileras automatiskt till CSS med:
 // sass --watch static/scss:static/css --load-path=node_modules/bootstrap/scss --quiet-deps
+// ============================================================
 
-// 1. Google Fonts
+
+// ============================================================
+// 1. GOOGLE FONTS
+// ============================================================
+
+// Importerar typsnittet Inter från Google Fonts.
+// Används som huvudsakligt typsnitt i applikationen.
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap');
 
-// 2. Bootstrap overrides
-$primary: #187513;
-$secondary: #2c3e50;
-$danger: #dc3545;
-$success: #0d9462;
-$dark:    #2c3e50;
-$body-bg: #fcf8f9;
 
+// ============================================================
+// 2. BOOTSTRAP – EGNA VARIABLER
+// ============================================================
+
+// Dessa variabler sätts INNAN Bootstrap importeras.
+//
+// Bootstrap använder sedan dessa värden när sin egen CSS
+// genereras. Det gör att vi kan anpassa Bootstrap utan att
+// behöva skriva om en massa Bootstrap-klasser själva.
+
+$primary: #187513;      // Huvudfärg – används bl.a. av .btn-primary
+$secondary: #2c3e50;    // Sekundär färg
+$danger: #dc3545;       // Fel/varning
+$success: #0d9462;      // Lyckade operationer
+$dark: #2c3e50;         // Bootstrap .bg-dark, text-dark etc.
+$body-bg: #fcf8f9;      // Bakgrundsfärg för hela sidan
+
+
+// Eget standardtypsnitt.
+//
+// Bootstrap använder $font-family-sans-serif för sin
+// standardfont, så detta påverkar hela applikationen.
 $font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
 
-// 3. Import Bootstrap
+
+// ============================================================
+// 3. BOOTSTRAP
+// ============================================================
+
+// Bootstrap importeras EFTER våra variabler.
+//
+// Därmed använder Bootstrap våra värden för exempelvis
+// primary, secondary, body-bg och font-family.
 @import "bootstrap";
 
-// 4. Din egen design
 
-#questionsTable {
-    thead {
-        // Huvudraden med rubriker
-        tr:first-child th {
-            background-color: $secondary !important; // Bootstraps bg-dark
-            color: #fff !important;
-            border-color: #373b3e !important;
-            vertical-align: middle;
-            
-            // Fixar så att DataTables sorteringspilar syns mot mörk bakgrund
-            &.dt-orderable-asc, &.dt-orderable-desc {
-                cursor: pointer;
-            }
-        }
+// ============================================================
+// 4. GLOBAL / ÖVERGRIPANDE DESIGN
+// ============================================================
 
-        // Filter-raden (den under rubrikerna)
-        tr.filters {
-            th {
-                background-color: $secondary !important; // Något ljusare mörkgrå
-                padding: 8px;
-                border-color: #373b3e;
-
-                .column-filter, .form-select, .date-from, .date-to {
-                    background-color: #f8f9fa;
-                    border: 1px solid #495057;
-                    
-                    &:focus {
-                        background-color: #fff;
-                        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-                    }
-                }
-            }
-        }
-    }
-}
+// ------------------------------------------------------------
+// Paneler som använder Bootstrap-klasserna:
+// .bg-white.border.rounded-3
+// ------------------------------------------------------------
 
 .bg-white.border.rounded-3 {
+
+    // Lätt skugga runt panelen.
     box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+
+    // Gör förändringen av border-färgen mjuk.
     transition: border-color 0.3s ease;
-    
+
+    // När muspekaren ligger över panelen.
     &:hover {
         border-color: $primary !important;
     }
 }
 
+
+// ------------------------------------------------------------
+// Bootstrap .card
+// ------------------------------------------------------------
+
 .card {
+
+    // Tar bort Bootstraps standard-border.
     border: none;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+
+    // Ger kortet en diskret skugga.
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+
+    // Gör hover-animationen mjuk.
     transition: transform 0.2s ease-in-out;
 
+    // När muspekaren ligger över kortet.
     &:hover {
         transform: translateY(-5px);
-        box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
     }
 
+    // Rubriker av typen <h3> inuti ett kort.
     h3 {
         color: $dark;
         font-size: 1.25rem;
@@ -81,13 +112,38 @@ $font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
     }
 }
 
+
+// ------------------------------------------------------------
+// Navbar
+// ------------------------------------------------------------
+
 .navbar {
-    border-bottom: 3px solid $primary;
+
+    // Grön linje längst ned på navbaren.
+    border-bottom: 6px solid $primary;
 }
 
-// 5. Importera dina nya komponenter
+
+// ============================================================
+// 5. EGNA KOMPONENTER
+// ============================================================
+
+// Här importeras separata SCSS-filer.
+//
+// Tanken är att varje fil ansvarar för en viss del av
+// applikationen.
+//
+// _autocomplete.scss → autocomplete/TomSelect
+// _tables.scss      → tabeller
+// _forms.scss       → formulär
+// _layout.scss      → layout och sidstruktur
+// _variables.scss   → egna SCSS-variabler
+//
+// Dessa importeras sist eftersom de innehåller vår egen
+// styling som ska ligga ovanpå Bootstrap.
+
 @import "autocomplete";
 @import "tables";
 @import "forms";
-@import "layout";   
-@import "variables";       
+@import "layout";
+@import "variables";

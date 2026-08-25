@@ -1,195 +1,287 @@
-from flask import Blueprint
-import os
-import random
-import string
-import hashlib
-import secrets
-from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
-from rapidfuzz import fuzz
-from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify, g, make_response, abort
-from sqlalchemy import select, delete, and_, or_
+from datetime import date, timedelta
+from thefuzz import fuzz, process
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g, make_response, abort
+from sqlalchemy import select
+from sqlalchemy.dialects.mysql import match
 from sqlalchemy.exc import IntegrityError
-from flask_sqlalchemy import SQLAlchemy
 from app.extensions import db
-from app.models import InputType, TagType, MediaType, TemplateType, PointType
-from app.models import QuestionTemplateLink
-from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
-from app.services.auth import generate_code, create_remember_token
-from flask import current_app
+from app.models import Response, Student, Group, Team, Tag, TagType, QuestionType, Question 
+from app.services.htmx import toast
+from app.services.auth import logout_everywhere, generate_code
+from app.services.utils import utc_now
 
 questions_bp = Blueprint(
     "questions",
     __name__,
-    url_prefix="/questions"
+    url_prefix="/questions",
 )
 
-@questions_bp.route("/create")
-def create_question():
-    data = request.json
-    prompt = data.get('prompt')
-    subject_id = data.get('subject_id')
-    question_type_name = data.get('question_type')
-    tags_string = data.get('tags', '') # Hämtar t.ex. "matte,ekvation"
+# -------------------------------------------------
+# HJÄLPFUNKTIONER
+# -------------------------------------------------
 
-    try:
-        # 1. Skapa frågan
-        new_q = Question(
-            prompt=prompt,
-            subject_id=subject_id,
-            question_type=question_type_name
+def get_question_form_data():
+    """Hämta data som behövs till frågeformuläret."""
+    question_types = list(QuestionType)
+    tags = db.session.scalars(
+        select(Tag).order_by(Tag.name)
+        ).all()
+    return question_types, tags
+
+
+def get_selected_tags():
+    """
+    Hämta valda taggar från formuläret.
+    Formuläret skickar flera taggar med samma namn:
+        tag_ids = [1, 4, 7, ...]
+    """
+    tag_ids = request.form.getlist("tag_ids")
+    if not tag_ids:
+        return []
+    # Ta bort tomma värden och dubbletter
+    tag_ids = {
+        int(tag_id)
+        for tag_id in tag_ids
+        if tag_id.strip()
+    }
+    if not tag_ids:
+        return []
+    return db.session.scalars(
+        select(Tag).where(Tag.id.in_(tag_ids))
+        ).all()
+
+
+# -------------------------------------------------
+# HANTERA FRÅGOR
+# -------------------------------------------------
+
+@questions_bp.get("/manage")
+def manage():
+    search = request.args.get("search", "").strip()
+    tag_id = request.args.get("tag_id", type=int)
+    tag_type_name = request.args.get("tag_type", "").strip()
+    question_type_name = request.args.get("question_type", "").strip()
+    created_from = request.args.get("created_from", "").strip()
+    created_to = request.args.get("created_to", "").strip()
+    query = select(Question)
+    # -------------------------------------------------
+    # TAGG
+    # -------------------------------------------------
+    if tag_id:
+        query = query.where(
+            Question.tags.any(Tag.id == tag_id)
         )
-        
-        # 2. Bearbeta taggar
-        if tags_string:
-            # Gör om strängen till en lista: ["matte", "ekvation"]
-            tag_names = [t.strip() for t in tags_string.split(',') if t.strip()]
-            
-            for name in tag_names:
-                # Sök efter befintlig tagg med db.session.get eller query
-                tag = db.session.query(Tag).filter_by(name=name).first()
-                if not tag:
-                    tag = Tag(name=name)
-                    db.session.add(tag)
-                
-                # Lägg till taggen i frågans tagg-lista
-                new_q.tags.append(tag)
-
-        # 3. Spara allt i ett svep
-        db.session.add(new_q)
-        db.session.commit()
-        
-        return jsonify({"status": "ok", "id": new_q.id})
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error creating question: {e}")
-        return jsonify({"status": "error", "error": str(e)}), 500
-
-@questions_bp.route("/show")
-def questions():
-    query = select(Question).order_by(Question.id)
+    # -------------------------------------------------
+    # TAGGTYP
+    # -------------------------------------------------
+    if tag_type_name:
+        try:
+            tag_type = TagType[tag_type_name]
+        except KeyError:
+            tag_type = None
+        if tag_type:
+            query = query.where(
+                Question.tags.any(Tag.tag_type == tag_type)
+            )
+    # -------------------------------------------------
+    # SVARSTYP
+    # -------------------------------------------------
+    if question_type_name:
+        try:
+            question_type = QuestionType[question_type_name]
+        except KeyError:
+            question_type = None
+        if question_type:
+            query = query.where(
+                Question.question_type == question_type
+            )
+    # -------------------------------------------------
+    # DATUM
+    # -------------------------------------------------
+    if created_from:
+        try:
+            created_from_date = date.fromisoformat(created_from)
+            query = query.where(
+                Question.created_at >= created_from_date
+            )
+        except ValueError:
+            pass
+    if created_to:
+        try:
+            created_to_date = date.fromisoformat(created_to)
+            query = query.where(
+                Question.created_at
+                < created_to_date + timedelta(days=1)
+            )
+        except ValueError:
+            pass
+    # -------------------------------------------------
+    # FRITEXTSÖKNING
+    # -------------------------------------------------
+    if search:
+        match_expr = match(
+            Question.text,
+            search,
+        )
+        query = query.where(match_expr)
+        query = query.order_by(match_expr.desc())
+        # Begränsa hur många frågor vi skickar vidare
+        # till fuzzy matching.
+        query = query.limit(1000)
+    else:
+        query = query.order_by(
+            Question.created_at.desc()
+        )
     questions = db.session.scalars(query).all()
-    query = select(Tag).order_by(Tag.name)
-    tags = db.session.scalars(query).all()
-    question_types = list(InputType)
+    # -------------------------------------------------
+    # FUZZY MATCHING
+    # -------------------------------------------------
+    if search:
+        questions_alike = []
+        search_lower = search.lower()
+        for question in questions:
+            score = fuzz.token_set_ratio(
+                search_lower,
+                question.text.lower(),
+            )
+            if score >= 60:
+                questions_alike.append(
+                    (score, question)
+                )
+        questions_alike.sort(
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        questions = [
+            question
+            for score, question
+            in questions_alike[:100]
+        ]
+    # -------------------------------------------------
+    # HTMX
+    # -------------------------------------------------
+    if request.headers.get("HX-Request"):
+        return render_template(
+            "questions/_questions_table.html",
+            questions=questions,
+        )
+    # -------------------------------------------------
+    # HELA SIDAN
+    # -------------------------------------------------
+    question_types, tags = get_question_form_data()
+    tag_types = list(TagType)
+    today = utc_now().strftime("%Y-%m-%d")
     return render_template(
-        "questions.html",
+        "questions/manage.html",
         questions=questions,
         tags=tags,
-        question_types=question_types
+        tag_types=tag_types,
+        question_types=question_types,
+        today=today,
+    )
+# -------------------------------------------------
+# NY FRÅGA
+# -------------------------------------------------
+@questions_bp.get("/new")
+def new_form():
+    question_types, tags = get_question_form_data()
+    return render_template(
+        "questions/new.html",
+        question=None,
+        question_types=question_types,
+        tags=tags,
+    )
+@questions_bp.post("/new")
+def create_question():
+    text = request.form.get("text", "").strip()
+    question_type_name = request.form.get("question_type","").strip()
+    if not text:
+        flash("Frågan måste innehålla text.", "warning")
+        return redirect(
+            url_for("questions.new_form")
+        )
+    try:
+        question_type = QuestionType[question_type_name]
+    except KeyError:
+        flash("Ogiltig svarstyp.", "danger")
+        return redirect(
+            url_for("questions.new_form")
+        )
+    # -------------------------------------------------
+    # SKAPA FRÅGA
+    # -------------------------------------------------
+    question = Question(
+        text=text,
+        question_type=question_type,
+        author_id=g.user.id,
+    )
+    # -------------------------------------------------
+    # TAGGAR
+    # -------------------------------------------------
+    question.tags = get_selected_tags()
+    db.session.add(question)
+    db.session.commit()
+    flash("Frågan skapades.", "success")
+    return redirect(
+        url_for("questions.manage")
+    )
+# -------------------------------------------------
+# REDIGERA FRÅGA
+# -------------------------------------------------
+@questions_bp.get("/edit/<int:question_id>")
+def edit_question(question_id):
+    question = db.session.get(
+        Question,
+        question_id,
+    )
+    if question is None:
+        abort(404)
+    question_types, tags = get_question_form_data()
+    return render_template(
+        "questions/new.html",
+        question=question,
+        question_types=question_types,
+        tags=tags,
     )
 
-@questions_bp.route("/update", methods=["POST"])
-def update_question():
-    data = request.json
-    q = db.session.get(Question, data["id"])
-    field = data["field"]
-    value = data["value"]
-    if field == "question_type":
-        value = InputType[value]
-    setattr(q, field, value)
-    db.session.commit()
-    return {"success": True}
-
-# Uppdaterad sök-route för HTM
-@questions_bp.route("/search")
-def search_questions_table():
-    text = request.args.get("text", "").strip().lower() 
-    # Hämta alla frågor (eller begränsa om databasen är enorm)
-    all_questions = db.session.scalars(select(Question)).all()
+@questions_bp.post("/edit/<int:question_id>")
+def update_question(question_id):
+    question = db.session.get(
+        Question,
+        question_id,
+    )
+    if question is None:
+        abort(404)
+    text = request.form.get("text", "").strip()
+    question_type_name = request.form.get(
+        "question_type",
+        "",
+    ).strip()
     if not text:
-        results = all_questions
-    else:
-        # Fuzzy search med din befintliga logik
-        scored_results = []
-        for q in all_questions:
-            # Kolla prompt ELLER taggar
-            tag_text = " ".join([t.name.lower() for t in q.tags])
-            score = max(
-                fuzz.partial_ratio(text, q.prompt.lower()),
-                fuzz.partial_ratio(text, tag_text)
+        flash("Frågan måste innehålla text.", "warning")
+        return redirect(
+            url_for(
+                "questions.edit_question",
+                question_id=question.id,
             )
-            if score > 60: # Tröskelvärde
-                scored_results.append((score, q))
-        # Sortera på poäng
-        scored_results.sort(key=lambda x: x[0], reverse=True)
-        results = [r[1] for r in scored_results]
-    # Returnera enbart rader (en partial template)
-    return render_template("partials/question_rows.html", questions=results)
-
-# Route för att uppdatera ett fält (HTM-vänlig)
-@questions_bp.route("update_question_field", methods=["POST"])
-def update_question_field():
-    q_id = request.form.get("id")
-    field = request.form.get("field")
-    value = request.form.get("value")
-    q = db.session.get(Question, q_id)
-    if field == "question_type":
-        value = InputType[value]
-    setattr(q, field, value)
-    db.session.commit()
-    return "", 200 # HTM behöver inget svar om vi bara vill uppdatera tyst
-
-@questions_bp.route("/update_tags", methods=["POST"])
-def update_tags():
-    data = request.json
-    question_id = data.get('id')
-    tags_string = data.get('tags', '')
-    # Modern syntax istället för Question.query.get()
-    question = db.session.get(Question, question_id)
-    if not question:
-        return {"success": False, "error": "Frågan hittades inte"}, 404
-    # Rensa befintliga kopplingar
-    question.tags = []
-    if tags_string:
-        # Dela upp strängen till en lista av namn
-        tag_names = [t.strip() for t in tags_string.split(',') if t.strip()]
-        for name in tag_names:
-            # Här använder vi db.session.query istället för Tag.query
-            tag = db.session.query(Tag).filter_by(name=name).first()
-            if not tag:
-                # Om taggen inte finns, skapa den
-                tag = Tag(name=name)
-                db.session.add(tag)
-            # Koppla taggen till frågan
-            question.tags.append(tag)
-    try:
-        db.session.commit()
-        return {"success": True}
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error saving tags: {e}")
-        return {"success": False, "error": str(e)}, 500
-
-@questions_bp.route("/tag_suggest")
-def tag_suggest():
-    text = request.args.get("text", "")
-    if not text:
-        return jsonify([])
-    # Modern SQLAlchemy-syntax (istället för Tag.query)
-    stmt = select(Tag).where(Tag.name.ilike(f"%{text}%")).limit(10)
-    tags = db.session.execute(stmt).scalars().all()   
-    return jsonify([t.name for t in tags])
-
-@questions_bp.route("/search_2")
-def search_questions_2():
-    text = request.args.get("text", "").strip()
-    if not text:
-        return jsonify([])
-    base_query = Question.query
-    db_matches = base_query.filter(
-        or_(
-            Question.prompt.ilike(f"%{text}%"),
-            Question.tags.any(Tag.name.ilike(f"%{text}%"))
         )
-    ).all()
-    results = {q.id: {"id": q.id, "text": q.prompt, "subject_id": q.subject_id, "score": 100}
-               for q in db_matches}
-    all_questions = base_query.all()
-    for q in all_questions:
-        score = fuzz.partial_ratio(text.lower(), q.prompt.lower())
-        if score > 70:
-            results[q.id] = {"id": q.id, "text": q.prompt, "subject_id": q.subject_id, "score": score}
-    sorted_results = sorted(results.values(), key=lambda x: x["score"], reverse=True)
-    return jsonify(sorted_results)
+    try:
+        question_type = QuestionType[
+            question_type_name
+        ]
+    except KeyError:
+        flash("Ogiltig svarstyp.", "danger")
+        return redirect(
+            url_for(
+                "questions.edit_question",
+                question_id=question.id,
+            )
+        )
+    question.text = text
+    question.question_type = question_type
+    question.tags = get_selected_tags()
+    db.session.commit()
+    flash("Frågan uppdaterades.", "success")
+    return redirect(
+        url_for("questions.manage")
+    )

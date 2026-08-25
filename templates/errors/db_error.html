@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="text-center mt-5">
+
+    <h1>db_error</h1>
+
+    <p>Sidan kunde inte hittas.</p>
+
+    <a
+        href="{{ url_for('dashboard.index') }}"
+        class="btn btn-primary">
+
+        Till startsidan
+
+    </a>
+    <div>{{ error }}</div>
+
+</div>
+
+{% endblock %}

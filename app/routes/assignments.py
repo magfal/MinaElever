@@ -12,7 +12,7 @@ from sqlalchemy import select, delete, and_, or_
 from sqlalchemy.exc import IntegrityError
 from flask_sqlalchemy import SQLAlchemy
 from app.extensions import db
-from app.models import InputType, TagType, MediaType, TemplateType, PointType
+from app.models import QuestionType, TagType, MediaType, TemplateType, PointType
 from app.models import QuestionTemplateLink
 from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
 from app.services.auth import generate_code
@@ -38,14 +38,14 @@ def add_assignment_post():
     extra_data = request.form.get("extra_data"),
     
     # Question type (default TEXT)
-    qt_str = request.form.get("input_type") or "TEXT"
-    input_type = InputType[qt_str]
+    qt_str = request.form.get("guestion_type") or "TEXT"
+    question_type = QuestionType[qt_str]
 
     # 1. Skapa ny fråga
     if selected_question_id == "" and new_question_text:
         new_question = Question(
             text = new_question_text,
-            input_type = input_type,
+            question_type = question_type,
             expected_answer = expected_answer,
             extra_data = extra_data, 
             created_at = datetime.now()

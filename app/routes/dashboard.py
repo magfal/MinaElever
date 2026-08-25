@@ -12,7 +12,7 @@ from sqlalchemy import select, delete, and_, or_
 from sqlalchemy.exc import IntegrityError
 from flask_sqlalchemy import SQLAlchemy
 from app.extensions import db
-from app.models import InputType, TagType, MediaType, TemplateType, PointType
+from app.models import QuestionType, TagType, MediaType, TemplateType, PointType
 from app.models import QuestionTemplateLink
 from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
 from app.services.auth import generate_code, create_remember_token

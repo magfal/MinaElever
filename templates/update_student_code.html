@@ -41,12 +41,10 @@
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
     if (typeof TomSelect === "undefined") {
         console.error("TomSelect laddades inte!");
         return;
     }
-
     new TomSelect("#student-select");
 });
 </script>

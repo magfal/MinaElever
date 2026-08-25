@@ -1,0 +1,45 @@
+<form
+    id="tagsForm"
+    data-modal-close
+    hx-post="{{ action }}"
+    hx-target="#tagsTable"
+    hx-swap="innerHTML">
+    <div class="modal-header">
+        <h5 class="modal-title">{{ title }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="mb-3">
+            <label for="tag_list">En tagg per rad (ev. förklaring efter ett kommatecken):</label>
+            <textarea 
+                class="form-control"     
+                name="tag_list" 
+                id="tag_list" 
+                rows="5"                 
+                style="white-space: pre-wrap; overflow-y: scroll;"></textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">
+                Taggtyp
+            </label>
+            <select
+                class="form-select"
+                name="tag_type">
+                {% for tag_type in tag_types %}
+                    <option
+                        value="{{ tag_type.name }}"
+                        {% if request.args.get('tag_type') == tag_type.name %}
+                            selected
+                        {% endif %}>
+                        {{ tag_type.value }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>    
+    <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">
+            Spara
+        </button>
+    </div>
+</form>

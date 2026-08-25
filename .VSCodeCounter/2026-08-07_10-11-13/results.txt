@@ -1,0 +1,118 @@
+Date : 2026-08-07 10:11:13
+Directory : c:\Users\magfal0620\Desktop\MinaElever
+Total : 70 files,  15072 codes, 270 comments, 1385 blanks, all 16727 lines
+
+Languages
++------------------+------------+------------+------------+------------+------------+
+| language         | files      | code       | comment    | blank      | total      |
++------------------+------------+------------+------------+------------+------------+
+| PostCSS          |          1 |     11,051 |         24 |        913 |     11,988 |
+| HTML             |         35 |      1,852 |         28 |        197 |      2,077 |
+| Python           |         23 |      1,604 |        190 |        147 |      1,941 |
+| Markdown         |          1 |        197 |          0 |         82 |        279 |
+| JavaScript       |          1 |        144 |         16 |         13 |        173 |
+| SCSS             |          6 |        141 |         12 |         30 |        183 |
+| JSON             |          2 |         69 |          0 |          2 |         71 |
+| pip requirements |          1 |         14 |          0 |          1 |         15 |
++------------------+------------+------------+------------+------------+------------+
+
+Directories
++-------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                | files      | code       | comment    | blank      | total      |
++-------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                   |         70 |     15,072 |        270 |      1,385 |     16,727 |
+| . (Files)                                                                           |          5 |        284 |          0 |         87 |        371 |
+| app                                                                                 |         22 |      1,600 |        190 |        145 |      1,935 |
+| app (Files)                                                                         |          5 |        353 |        145 |         50 |        548 |
+| app\routes                                                                          |         11 |      1,115 |         35 |         77 |      1,227 |
+| app\services                                                                        |          6 |        132 |         10 |         18 |        160 |
+| static                                                                              |          8 |     11,336 |         52 |        956 |     12,344 |
+| static\css                                                                          |          1 |     11,051 |         24 |        913 |     11,988 |
+| static\js                                                                           |          1 |        144 |         16 |         13 |        173 |
+| static\scss                                                                         |          6 |        141 |         12 |         30 |        183 |
+| templates                                                                           |         35 |      1,852 |         28 |        197 |      2,077 |
+| templates (Files)                                                                   |         13 |        701 |         11 |         87 |        799 |
+| templates\admin                                                                     |          2 |        110 |          3 |         24 |        137 |
+| templates\auth                                                                      |          1 |         18 |          0 |          0 |         18 |
+| templates\errors                                                                    |          1 |         12 |          0 |          9 |         21 |
+| templates\groups                                                                    |         10 |        370 |          8 |          8 |        386 |
+| templates\partials                                                                  |          1 |         51 |          0 |          5 |         56 |
+| templates\students                                                                  |          7 |        590 |          6 |         64 |        660 |
++-------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| filename                                                                            | language         | code       | comment    | blank      | total      |
++-------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| c:\Users\magfal0620\Desktop\MinaElever\README.md                                    | Markdown         |        197 |          0 |         82 |        279 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\__init__.py                              | Python           |         64 |         57 |          7 |        128 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\base.py                                  | Python           |          3 |         13 |          2 |         18 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\config.py                                | Python           |          1 |         16 |          1 |         18 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\extensions.py                            | Python           |          3 |         23 |          3 |         29 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\models.py                                | Python           |        282 |         36 |         37 |        355 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\__init__.py                       | Python           |          0 |          0 |          1 |          1 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\assignments.py                    | Python           |         61 |          4 |          9 |         74 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\auth.py                           | Python           |        111 |          2 |          5 |        118 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\dashboard.py                      | Python           |         42 |          1 |          3 |         46 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\gamification.py                   | Python           |          9 |          0 |          2 |         11 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\groups.py                         | Python           |        255 |          0 |         12 |        267 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\questions.py                      | Python           |        159 |         20 |         16 |        195 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\responses.py                      | Python           |         78 |          3 |          7 |         88 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\statistics.py                     | Python           |          9 |          0 |          2 |         11 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\students.py                       | Python           |        382 |          5 |         18 |        405 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\routes\templates.py                      | Python           |          9 |          0 |          2 |         11 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\services\__init__.py                     | Python           |          0 |          0 |          1 |          1 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\services\auth.py                         | Python           |         95 |          6 |          9 |        110 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\services\htmx.py                         | Python           |         13 |          0 |          1 |         14 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\services\students.py                     | Python           |          4 |          0 |          2 |          6 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\services\tags.py                         | Python           |         11 |          0 |          3 |         14 |
+| c:\Users\magfal0620\Desktop\MinaElever\app\services\utils.py                        | Python           |          9 |          4 |          2 |         15 |
+| c:\Users\magfal0620\Desktop\MinaElever\package-lock.json                            | JSON             |         46 |          0 |          1 |         47 |
+| c:\Users\magfal0620\Desktop\MinaElever\package.json                                 | JSON             |         23 |          0 |          1 |         24 |
+| c:\Users\magfal0620\Desktop\MinaElever\requirements.txt                             | pip requirements |         14 |          0 |          1 |         15 |
+| c:\Users\magfal0620\Desktop\MinaElever\run.py                                       | Python           |          4 |          0 |          2 |          6 |
+| c:\Users\magfal0620\Desktop\MinaElever\static\css\style.css                         | PostCSS          |     11,051 |         24 |        913 |     11,988 |
+| c:\Users\magfal0620\Desktop\MinaElever\static\js\common.js                          | JavaScript       |        144 |         16 |         13 |        173 |
+| c:\Users\magfal0620\Desktop\MinaElever\static\scss\_autocomplete.scss               | SCSS             |         19 |          0 |          2 |         21 |
+| c:\Users\magfal0620\Desktop\MinaElever\static\scss\_forms.scss                      | SCSS             |         14 |          0 |          3 |         17 |
+| c:\Users\magfal0620\Desktop\MinaElever\static\scss\_layout.scss                     | SCSS             |          3 |          0 |          0 |          3 |
+| c:\Users\magfal0620\Desktop\MinaElever\static\scss\_tables.scss                     | SCSS             |         31 |          2 |          7 |         40 |
+| c:\Users\magfal0620\Desktop\MinaElever\static\scss\_variables.scss                  | SCSS             |          8 |          0 |          1 |          9 |
+| c:\Users\magfal0620\Desktop\MinaElever\static\scss\style.scss                       | SCSS             |         66 |         10 |         17 |         93 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\add_assignment.html                | HTML             |        138 |          8 |         28 |        174 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\add_group.html                     | HTML             |         20 |          0 |          3 |         23 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\add_question.html                  | HTML             |         40 |          0 |          4 |         44 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\add_students.html                  | HTML             |         33 |          0 |          4 |         37 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\add_subject.html                   | HTML             |         20 |          0 |          3 |         23 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\admin\create_response.html         | HTML             |         41 |          0 |         20 |         61 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\admin\import_students.html         | HTML             |         69 |          3 |          4 |         76 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\asignment.html                     | HTML             |         26 |          0 |          6 |         32 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\auth\bootstrap.html                | HTML             |         18 |          0 |          0 |         18 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\base.html                          | HTML             |         92 |          2 |          3 |         97 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\dashboard.html                     | HTML             |         22 |          0 |          2 |         24 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\errors\404.html                    | HTML             |         12 |          0 |          9 |         21 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\_archived_groups_table.html | HTML             |         56 |          1 |          1 |         58 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\_group_change_form.html     | HTML             |         34 |          0 |          2 |         36 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\_group_modal.html           | HTML             |          6 |          1 |          0 |          7 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\_groups_new_form.html       | HTML             |         36 |          0 |          3 |         39 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\_groups_table.html          | HTML             |         45 |          1 |          0 |         46 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\_team_change_form.html      | HTML             |         32 |          0 |          0 |         32 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\_team_modal.html            | HTML             |          6 |          2 |          0 |          8 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\_teams_new_form.html        | HTML             |         32 |          0 |          0 |         32 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\_teams_table.html           | HTML             |         61 |          1 |          0 |         62 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\groups\manage.html                 | HTML             |         62 |          2 |          2 |         66 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\index.html                         | HTML             |         13 |          0 |          4 |         17 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\login.html                         | HTML             |         13 |          0 |          4 |         17 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\partials\question_rows.html        | HTML             |         51 |          0 |          5 |         56 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\questions.html                     | HTML             |         81 |          0 |          4 |         85 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\questionstest.html                 | HTML             |        162 |          0 |         13 |        175 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\students\_student_form.html        | HTML             |        117 |          0 |          0 |        117 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\students\_student_modal.html       | HTML             |          6 |          1 |          0 |          7 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\students\_students_form.html       | HTML             |        134 |          0 |          1 |        135 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\students\_students_table.html      | HTML             |        133 |          1 |          1 |        135 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\students\add.html                  | HTML             |         33 |          0 |          2 |         35 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\students\manage.html               | HTML             |         90 |          4 |          1 |         95 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\students\timeline.html             | HTML             |         77 |          0 |         59 |        136 |
+| c:\Users\magfal0620\Desktop\MinaElever\templates\update_student_code.html           | HTML             |         41 |          1 |          9 |         51 |
+| Total                                                                               |                  |     15,072 |        270 |      1,385 |     16,727 |
++-------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+

@@ -56,7 +56,6 @@
                         {{ team.name }} ×
                     </button>
                 {% endfor %}
-
                 {% for team in current_teams %}
                     <input
                         type="hidden"
@@ -66,14 +65,12 @@
             </div>
         </div>
         <div class="mb-3">
-            <label class="form-label">
-                Lägg till grupp
-            </label>
+            <label class="form-label">Lägg till grupp (ev. förklaring efter kommatecken)</label>
             <div class="input-group">
                 <select
-                    class="form-select"
-                    id="teamSelect",
-                    name="team_id">
+                    class="form-select tomselect-create"
+                    name="team">
+                    <option value=""></option>
                     {% for team in teams %}
                         <option value="{{ team.id }}">
                             {{ team.name }}
@@ -82,11 +79,11 @@
                 </select>
                 <button
                     type="button"
-                    class="btn btn-outline-primary"
+                    class="btn btn-outline-primary add-tomselect-btn"
                     hx-post="{{ url_for('students.edit_students') }}"
                     hx-target="#studentModalContent"
                     hx-swap="innerHTML"
-                    hx-include="#teamSelect, #studentTeams"
+                    hx-include="#studentsForm"
                     hx-vals='{
                         "action": "add_team"
                     }'>

@@ -1,0 +1,97 @@
+<!-- Frågorr -->
+<div class="sticky-table-container">
+    <table class="table table-hover mb-0 sticky-table">
+        <thead>
+            <tr>
+                <th class="sortable i">
+                    Frågor
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Skapad
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Ämne
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Område
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Kortlek
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Allmän
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Svarstyp
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="text-end">
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+        {% if questions %}
+            {% for question in questions %}
+                <tr data-text="{{question.text.lower()}}">
+                    <td>{{question.text}}</td>
+                    <td>{{question.created_at}}</td>
+                    <td>
+                        {% for tag in tags %}
+                            {% if tag.tag_type == "Ämne" %}
+                            {{tag}}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for tag in tags %}
+                            {% if tag.tag_type == "Område" %}
+                            {{tag}}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for tag in tags %}
+                            {% if tag.tag_type == "Kortlek" %}
+                            {{tag}}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for tag in tags %}
+                            {% if tag.tag_type == "Allmän" %}
+                            {{tag}}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {{question.question_type}}
+                    </td>
+                    <td class="text-end">
+                        <button
+                            class="btn btn-sm btn-outline-primary"
+                            hx-get="{{ url_for('questions.edit_question', question_id=question.id) }}"
+                            hx-target="#studentModalContent"
+                            hx-swap="innerHTML"
+                            data-bs-toggle="modal"
+                            data-bs-target="#studentModal">
+                            Ändra
+                        </button>
+                    </td>
+                </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="8" class="text-center text-muted">
+                    Tom tabell.
+                </td>
+            </tr>
+        {% endif %}
+        </tbody>
+    </table>
+</div>

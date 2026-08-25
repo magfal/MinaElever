@@ -1,3 +1,50 @@
+// Initierar Tomselect (klass add-tomselect-btn på plusknapp skcikas dit från enter)
+function initTomSelects(root = document) {
+    root.querySelectorAll(".tomselect-create")
+        .forEach(el => {
+            if (el.tomselect) return;
+            const tom = new TomSelect(el, {
+                create: true,
+                createOnBlur: true,
+                persist: false
+            });
+            const button = el
+                .closest(".input-group")
+                ?.querySelector(".add-tomselect-btn");
+            if (button) {
+                tom.control_input.addEventListener(
+                    "keydown", 
+                    (event) => {
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            el.dispatchEvent(
+                                new Event("change", { 
+                                    bubbles: true 
+                                })
+                            );
+                            button.click();
+                        }
+                    }
+                )
+            }
+        });
+}
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => initTomSelects()
+);
+
+
+document.body.addEventListener(
+    "htmx:afterSwap",
+    (event) => {
+        initTomSelects(event.target);
+    }
+);
+
+
 // Har koll på checkboxarna
 function setupSelectAll(selectAllId, checkboxName, tableId) {
     const selectAll = document.getElementById(selectAllId);

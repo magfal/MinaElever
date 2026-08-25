@@ -11860,29 +11860,6 @@ textarea.form-control-lg {
     display: none !important;
   }
 }
-#questionsTable thead tr:first-child th {
-  background-color: #2c3e50 !important;
-  color: #fff !important;
-  border-color: #373b3e !important;
-  vertical-align: middle;
-}
-#questionsTable thead tr:first-child th.dt-orderable-asc, #questionsTable thead tr:first-child th.dt-orderable-desc {
-  cursor: pointer;
-}
-#questionsTable thead tr.filters th {
-  background-color: #2c3e50 !important;
-  padding: 8px;
-  border-color: #373b3e;
-}
-#questionsTable thead tr.filters th .column-filter, #questionsTable thead tr.filters th .form-select, #questionsTable thead tr.filters th .date-from, #questionsTable thead tr.filters th .date-to {
-  background-color: #f8f9fa;
-  border: 1px solid #495057;
-}
-#questionsTable thead tr.filters th .column-filter:focus, #questionsTable thead tr.filters th .form-select:focus, #questionsTable thead tr.filters th .date-from:focus, #questionsTable thead tr.filters th .date-to:focus {
-  background-color: #fff;
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-}
-
 .bg-white.border.rounded-3 {
   box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
   transition: border-color 0.3s ease;
@@ -11907,7 +11884,7 @@ textarea.form-control-lg {
 }
 
 .navbar {
-  border-bottom: 3px solid #187513;
+  border-bottom: 6px solid #187513;
 }
 
 .autocomplete-box {

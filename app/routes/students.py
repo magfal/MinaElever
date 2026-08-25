@@ -1,15 +1,9 @@
 from flask import Blueprint
-from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
-from rapidfuzz import fuzz
-from flask import render_template, request, redirect, session, url_for, flash, jsonify, g, make_response, abort
-from sqlalchemy import select, delete, and_, or_
+from flask import render_template, request, redirect, url_for, flash, jsonify, g, make_response, abort
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from flask_sqlalchemy import SQLAlchemy
 from app.extensions import db
-from app.models import InputType, TagType, MediaType, TemplateType, PointType
-from app.models import QuestionTemplateLink
-from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, Team, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
+from app.models import Response, Student, Group, Team
 from app.services.htmx import toast
 from app.services.auth import logout_everywhere, generate_code
 
@@ -127,7 +121,6 @@ def add_update():
                 is_active=True,
             )
         )
-        existing.add(name)
     db.session.commit()
     students_added = len(student_names) - len(doubles)
     if students_added == 1:
@@ -167,11 +160,33 @@ def edit_student_modal(student_id):
     student = db.session.get(Student, student_id)
     if student is None:
         abort(404)
+    team_value = request.form.get("team")
     team_id = request.form.get("team_id", type=int)
     action = request.form.get("action")
-    team_id = request.form.get("team_id", type=int)
-    if action in ["add_team", "remove_team"]:
+    team = None
+    if team_id:
         team = db.session.get(Team, team_id)
+    if team_value:
+        if team_value.isdigit():
+            team = db.session.get(Team, int(team_value))
+        else:
+            if "," in team_value:
+                name, description = team_value.split(",", 1)
+            else:
+                name, description = team_value.strip(), ""
+            team = db.session.scalar(
+                select(Team)
+                .where(Team.name == team_value.strip())
+            )
+            if team is None:
+                team = Team(
+                    author_id=g.user.id,
+                    name=name,
+                    description=description
+                )
+                db.session.add(team)
+                db.session.flush()
+    if action in ["add_team", "remove_team"]:
         if team is None:
             abort(404)
         if action == "add_team":
@@ -270,48 +285,74 @@ def edit_students():
 def edit_students_action():
     action = request.form.get("action")
     team_id = request.form.get("team_id", type=int)
-    team = db.session.get(Team, team_id)
-    current_team_ids = request.form.getlist("team_ids")
+    team_value = request.form.get("team")
     student_ids = request.form.getlist("student_ids")
     students = db.session.scalars(
         select(Student)
         .where(Student.id.in_(student_ids))
     ).all()
-    if action == "add_team":
-        if str(team_id) not in current_team_ids:
-            current_team_ids.append(str(team_id))
-            for student in students:
+    team = None
+    if team_id:
+        team = db.session.get(Team, team_id)
+    if team_value:
+        if team_value.isdigit():
+            team = db.session.get(Team, int(team_value))
+        else:
+            if "," in team_value:
+                name, description = team_value.split(",", 1)
+            else:
+                name, description = team_value.strip(), ""
+            team = db.session.scalar(
+                select(Team)
+                .where(Team.name == team_value.strip())
+            )
+            if team is None:
+                team = Team(
+                    author_id=g.user.id,
+                    name=name,
+                    description=description
+                )
+                db.session.add(team)
+                db.session.flush()
+    if action in ["add_team", "remove_team"]:
+        if team is None:
+            abort(404)
+        for student in students:
+            if action == "add_team":
                 if team not in student.teams:
                     student.teams.append(team)
-    elif action == "remove_team":
-        if str(team_id) in current_team_ids:
-            current_team_ids.remove(str(team_id))
-            for student in students:
+            elif action == "remove_team":
                 if team in student.teams:
                     student.teams.remove(team)
-    db.session.commit()
-    groups = db.session.scalars(
-        select(Group)
-        .order_by(Group.name)
-    ).all()
-    teams = db.session.scalars(
-        select(Team)
-        .order_by(Team.name)
-    ).all()
-    current_teams = []
-    if current_team_ids:
+        db.session.commit()
+        current_team_ids = set()
+        for student in students:
+            for team in student.teams:
+                current_team_ids.add(team.id)
         current_teams = db.session.scalars(
             select(Team)
             .where(Team.id.in_(current_team_ids))
+            .order_by(Team.name)
+        ).all() if current_team_ids else []
+
+        groups = db.session.scalars(
+            select(Group)
+            .order_by(Group.name)
         ).all()
-    return render_template(
-        "students/_students_form.html",
-        students=students,
-        groups=groups,
-        teams=teams,
-        current_teams=current_teams,
-        action=url_for("students.update_students")
-    )
+
+        teams = db.session.scalars(
+            select(Team)
+            .order_by(Team.name)
+        ).all()
+        return render_template(
+            "students/_students_form.html",
+            students=students,
+            groups=groups,
+            teams=teams,
+            current_teams=current_teams,
+            action=url_for("students.update_students")
+        )
+
 
 @students_bp.post("/update_students")
 def update_students():

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+<!-- SIDHUVUD -->
+    <div class="d-flex justify-content-between align-items-center">
+        <h2 class="mb-0">Hantera frågor</h2>
+        <div class="d-flex gap-2">
+            <a
+                href="{{ url_for('questions.new_form') }}"
+                class="btn btn-primary">
+                Ny fråga
+            </a>
+    </div>
+</div>
+<!-- SÖKFILTER FÖR FRÅGOR -->
+<div class="row mb-3">
+    <form  
+        hx-get="{{ url_for('questions.manage') }}"
+        hx-target="#questionsTable"
+        hx-swap="innerHTML"
+        hx-trigger="change from:select, change from:input[type=date], keyup changed from:#search-input delay:500ms"        
+        hx-push-url="true"
+        class="row g-3">
+        <!-- Sök -->
+        <div class="col-12 col-md-4 col-lg-4">
+            <label class="form-label">Sök efter fråga</label>
+            <div class="input-group">
+                <input
+                    id="search-input"  
+                    class="form-control"
+                    type="search"
+                    name="search"
+                    value="{{ request.args.get('search', '') }}"
+                    placeholder="...">
+            </div>
+        </div>
+        <!-- Taggar -->
+        <div class="col-12 col-md-3 col-lg-2">
+            <label class="form-label">Taggar</label>
+            <select
+                class="form-select tomselect-create"
+                name="tag_id">
+                <option value="">Alla taggar</option>
+                {% for tag in tags %}
+                    <option 
+                        value="{{ tag.name }}"
+                        {% if request.args.get('tag_id', type=int) == tag.id %}selected{% endif %}>
+                        {{ tag.value }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <!-- Taggtyp -->
+        <div class="col-12 col-md-3 col-lg-2">
+            <label class="form-label">Taggtyp</label>
+            <select
+                class="form-select"
+                name="tag_type_id">
+                <option value="">Alla taggtyper</option>
+                {% for tag_type in tag_types %}
+                    <option 
+                        value="{{ tag_type.name }}"
+                        {% if request.args.get('tag_type_id', type=int) == tag_type.id %}selected{% endif %}>
+                        {{ tag_type.value }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <!-- Svarstyp -->
+        <div class="col-12 col-md-3 col-lg-2">
+            <label class="form-label">Svarstyp</label>
+            <select
+                class="form-select"
+                name="q_type_id">
+                <option value="">Alla svarstyper</option>
+                {% for question_type in question_types %}
+                    <option 
+                        value="{{ question_type.name }}"
+                        {% if request.args.get('q_type_id', type=int) ==  q_type_id %}selected{% endif %}>
+                        {{ question_type.value }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <!-- Skapad -->
+        <div class="col-12 col-md-3 col-lg-2">
+            <label class="form-label">Tidsperiod</label>
+            <div class="dropdown">
+                <button
+                    class="btn btn-outline-secondary dropdown-toggle w-100"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-auto-close="outside">
+                    Kalender
+                </button>
+                <div
+                    class="dropdown-menu p-3"
+                    style="min-width: 340px;">
+                    <div class="row g-2">
+                        <div class="col">
+                            <label
+                                for="createdFrom"
+                                class="form-label">
+                                Från
+                            </label>
+                            <input
+                                type="date"
+                                class="form-control"
+                                id="createdFrom"
+                                name="created_from">
+                        </div>
+                        <div class="col">
+                            <label
+                                for="createdTo"
+                                class="form-label">
+                                Till
+                            </label>
+                            <input
+                                type="date"
+                                class="form-control"
+                                id="createdTo"
+                                name="created_to">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- TABELL --> 
+<div class="card mb-4">
+    <div class="card-body p-0" id="questionsTable">
+        {% include "questions/_questions_table.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}

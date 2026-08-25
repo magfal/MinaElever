@@ -12,7 +12,7 @@ from sqlalchemy import select, delete, and_, or_
 from sqlalchemy.exc import IntegrityError
 from flask_sqlalchemy import SQLAlchemy
 from app.extensions import db
-from app.models import InputType, TagType, MediaType, TemplateType, PointType
+from app.models import QuestionType, TagType, MediaType, TemplateType, PointType
 from app.models import QuestionTemplateLink
 from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
 from app.services.auth import create_remember_token, redirect_after_login, generate_code
@@ -41,41 +41,42 @@ def bootstrap():
         db.session.add(teacher)
         db.session.commit()
         flash("Första läraren skapad. Du kan nu logga in.", "success")
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.login_get"))
     return render_template("auth/bootstrap.html")
 
-@auth_bp.route("/login", methods=["GET", "POST"])
-def login():
+@auth_bp.get("/login")
+def login_get():    
     if g.user:
         return redirect_after_login(g.user)
-    if request.method == "POST":
-        code = request.form.get("code", "").strip()
-        user = db.session.scalar(
-            select(User).where(User.login_code == code)
-        )
-        if not user:
-            response = make_response(render_template(
-                "login.html"))
-            toast(response, "Ogiltig kod", "danger")
-            return response
-        session.clear()
-        session["user_id"] = user.id
-        print(f'User_id: session.get("user_id")')
-        session.permanent = True
-        response = make_response(
-            redirect_after_login(user)
-        )
-        token = create_remember_token(user)
-        response.set_cookie(
-            "remember_token",
-            token,
-            max_age=60*60*24*180,
-            httponly=True,
-            secure=not current_app.debug,
-            samesite="Lax",
-        )
-        return response
     return render_template("login.html")
+
+@auth_bp.post("/login")
+def login_post():
+    code = request.form.get("code", "").strip()
+    user = db.session.scalar(
+        select(User).where(User.login_code == code)
+    )
+    if not user:
+        response = make_response(render_template(
+            "login.html"))
+        toast(response, "Ogiltig kod", "danger")
+        return response
+    session.clear()
+    session["user_id"] = user.id
+    session.permanent = True
+    response = make_response(
+        redirect_after_login(user)
+    )
+    token = create_remember_token(user)
+    response.set_cookie(
+        "remember_token",
+        token,
+        max_age=60*60*24*180,
+        httponly=True,
+        secure=not current_app.debug,
+        samesite="Lax",
+    )
+    return response
 
 @auth_bp.post("/logout/<int:student_id>")
 def logout_student(student_id):

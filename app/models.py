@@ -10,7 +10,7 @@ from .services.utils import utc_now
 # ENUMS
 # -------------------------------------------------
 
-class InputType(enum.Enum):
+class QuestionType(enum.Enum):
     TEXT = "Text"
     NUMBER = "Tal"
     BOOLEAN = "Boolean"
@@ -20,13 +20,13 @@ class InputType(enum.Enum):
     SINGLE_CHOICE = "Enkelvalsvar"
     MULTIPLE_CHOICE = "Flervalssvar"
     FILE_UPLOAD = "Filuppladdning"
-    CSV_IMPORT = "CSV import"
+    CSV_IMPORT = "CSV-import"
 
 class TagType(enum.Enum):
     SUBJECT = "Ämne"
     AREA = "Område"
     DECK = "Kortlek"
-    GENERAL = "Generell"
+    OTHER = "Allmän"
 
 class MediaType(enum.Enum):
     IMAGE = "Bild"
@@ -121,7 +121,7 @@ class Question(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     text: Mapped[str] = mapped_column(Text)
-    input_type: Mapped[InputType] = mapped_column(Enum(InputType), default=InputType.TEXT, nullable=False)
+    question_type: Mapped[QuestionType] = mapped_column(Enum(QuestionType), default=QuestionType.TEXT, nullable=False)
     expected_answer: Mapped[dict|None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)    
     # Relationer
@@ -315,6 +315,7 @@ class Tag(Base):
     __tablename__ = "tags"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True)
+    description: Mapped[str | None] = mapped_column(String(120))
     tag_type: Mapped[TagType] = mapped_column(Enum(TagType), nullable=False)
     # Relationer
     questions: Mapped[list["Question"]] = relationship(secondary=question_tag_link, back_populates="tags")

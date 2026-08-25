@@ -78,7 +78,7 @@ def utcify(dt):
 
 def redirect_after_login(user):
     if user.type == "teacher":
-        return redirect(url_for("students.manage_students"))
+        return redirect(url_for("students.manage"))
     if user.type == "student":
         return redirect(url_for("students.index"))
     return redirect(url_for("auth.login"))
