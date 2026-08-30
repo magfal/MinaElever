@@ -11,13 +11,28 @@ tags_bp = Blueprint("tags", __name__, url_prefix="/tags")
 
 @tags_bp.get("/manage")
 def manage():
-    tags = db.session.scalars(
-        select(Tag)
-        .order_by(Tag.name)
-    ).all()
+    tag_type_name = request.args.get("tag_type", "").strip()
+    query = select(Tag)
+    if tag_type_name:
+        try:
+            tag_type = TagType[tag_type_name]
+        except KeyError:
+            tag_type = None
+        if tag_type:
+            query = query.where(
+                Tag.tag_type == tag_type
+            )
+    tags = db.session.scalars(query).all()
+    if request.headers.get("HX-Request"):
+        return render_template(
+            "tags/_tags_table.html",
+            tags=tags,
+        )
+    tag_types = list(TagType)
     return render_template(
         "tags/manage.html",
-        tags=tags,
+        tag_types=tag_types,
+        tags=tags
     )
 
 @tags_bp.get("/create_tag")
@@ -81,7 +96,8 @@ def create_tag():
 
 @tags_bp.get("/edit_tag/<int:tag_id>")
 def edit_tag_modal(tag_id):    
-    tag = db.session.get(Team, tag_id)
+    tag = db.session.get(Tag, tag_id)
+    tag_types = list(TagType)
     if not tag:
         response = make_response("")
         toast(response,f"Taggen hittades inte i databasen.", "warning")
@@ -89,6 +105,7 @@ def edit_tag_modal(tag_id):
     return render_template( 
         "tags/_tag_change_form.html",
         tag=tag,
+        tag_types=tag_types,
         action=url_for("tags.edit_tag", tag_id=tag.id),
         title="Ändra Tagg"    
         )
@@ -97,6 +114,7 @@ def edit_tag_modal(tag_id):
 def edit_tag(tag_id):
     name = request.form.get("name", "").strip()
     description = request.form.get("description", "").strip()
+    tag_type = request.form.get("tag_type", "").strip()
     if not name:
         response = make_response("")
         toast(response, "Namnet får inte var tomt", "warning", reswap="none")
@@ -110,18 +128,19 @@ def edit_tag(tag_id):
     try:
         tag.name = name
         tag.description = description
+        tag.tag_type = tag_type
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         response = make_response("")
-        toast(response, f"Gruppen {name} finns redan.", "warning", reswap="none")
+        toast(response, f"Taggenen {name} finns redan.", "warning", reswap="none")
         return response        
     tags = db.session.scalars(
         select(Tag)
         .order_by(Tag.name)
         ).all()
     response = make_response(render_template(
-        "groups/_tags_table.html", 
+        "tags/_tags_table.html", 
         tags=tags)) 
     toast(response, f"{old_name} ändrades till {name}")
     return response
@@ -132,7 +151,7 @@ def delete_tag(tag_id):
     if not tag:
         flash("Taggen hittades inte.", "danger")
         return redirect(url_for("tags.manage"))
-    if len(tag.students) > 0:
+    if len(tag.questions) > 0:
         flash("En tagg somm tillhör en fråga kan inte tas bort permanent.", "danger")
         return redirect(url_for("tags.manage_tags"))
     db.session.delete(tag)

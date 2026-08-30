@@ -52,7 +52,9 @@
             <select 
                 class="form-select" 
                 name="team_id">
-                <option value="">Alla grupper</option>
+                <option value="">
+                    Alla grupper
+                </option>
                 {% for team in teams %}
                     <option value="{{ team.id }}"
                         {% if team.id == request.args.get('selected_team_id') %}

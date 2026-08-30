@@ -25,35 +25,35 @@
             </button>
         </div>
     </div>
-</div>
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">
-            Klasser
-        </h5>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                Klasser
+            </h5>
+        </div>
+        <div class="card-body p-0" id="groupsTable">
+            {% include "groups/_groups_table.html" %}
+        </div>
     </div>
-    <div class="card-body p-0" id="groupsTable">
-        {% include "groups/_groups_table.html" %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                Grupper
+            </h5>
+        </div>
+        <div class="card-body p-0" id="teamsTable">
+            {% include "groups/_teams_table.html" %}
+        </div>
     </div>
-</div>
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">
-            Grupper
-        </h5>
-    </div>
-    <div class="card-body p-0" id="teamsTable">
-        {% include "groups/_teams_table.html" %}
-    </div>
-</div>
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">
-            Arkiverade klasser
-        </h5>
-    </div>
-    <div class="card-body p-0" id="archivedGroupsTable">
-        {% include "groups/_archived_groups_table.html" %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                Arkiverade klasser
+            </h5>
+        </div>
+        <div class="card-body p-0" id="archivedGroupsTable">
+            {% include "groups/_archived_groups_table.html" %}
+        </div>
     </div>
 </div>
 <!--Popup-fönster (modaler)-->

@@ -1,56 +1,79 @@
-<!-- Klasser -->
-<table class="table table-hover mb-0">
-    <colgroup>
-        <col style="width: 20%">
-        <col style="width: 10%">
-        <col style="width: 30%">
-        <col style="width: 10%">
-        <col style="width: 20%">
-    </colgroup>
-    <thead>
-        <tr>
-            <th>Namn</th>
-            <th>Frågor</th>
-            <th>Beskrivning</th>
-            <th>Typ</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        {% if tags %}
+<!-- Taggar -->
+<div class="sticky-table-container">
+    <table class="table table-hover mb-0 sticky-table">
+        <colgroup>
+            <col style="width: 20%">
+            <col style="width: 10%">
+            <col style="width: 30%">
+            <col style="width: 10%">
+            <col style="width: 20%">
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="sortable">
+                    Namn
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Frågor
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Beskrivning
+                    <i class="bi bi-chevron-expand ms-1"></i>                
+                </th>
+                <th class="sortable">
+                    Typ
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
             {% for tag in tags %}
-            <tr>
-                <td>
-                    {{ tag.name }}
-                </td>
-                <td>
-                    {{ tag.questions|length }}
-                </td>
-                <td>
-                    {{ tag.description }}
-                </td>
-                <td>
-                    {{ tag.tag_type.value }}
-                </td>
-                <td class="text-end">
-                    <button
-                        class="btn btn-sm btn-outline-primary"
-                        hx-get="{{ url_for('tags.edit_tag_modal', tag_id=tag.id) }}"
-                        hx-target="#tagModalContent"
-                        hx-swap="innerHTML"
-                        data-bs-toggle="modal"
-                        data-bs-target="#tagModal">
-                        Ändra
-                    </button>
-                </td>
-            </tr>
-            {% endfor %}
+                <tr>
+                    <td>
+                        {{ tag.name }}
+                    </td>
+                    <td>
+                        {{ tag.questions|length }}
+                    </td>
+                    <td>
+                        {{ tag.description or "" }}
+                    </td>
+                    <td>
+                        {{ tag.tag_type.value }}
+                    </td>
+                    <td class="text-end">
+                        <button
+                            class="btn btn-sm btn-outline-primary"
+                            hx-get="{{ url_for('tags.edit_tag_modal', tag_id=tag.id) }}"
+                            hx-target="#tagModalContent"
+                            hx-swap="innerHTML"
+                            data-bs-toggle="modal"
+                            data-bs-target="#tagModal">
+                            Ändra
+                        </button>
+                        {% if tag.questions|length == 0 %}
+                            <form method="POST"
+                                action="{{ url_for('tags.delete_tag', tag_id=tag.id) }}"
+                                class="d-inline"
+                                onsubmit="return confirm('Ta bort taggen permanent?');">
+                                <button
+                                    class="btn btn-sm btn-outline-danger">
+                                    Ta bort
+                                </button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
             {% else %}
-            <tr>
-                <td colspan="3" class="text-center text-muted">
-                Tom tabell.
-                </td>
-            </tr>
-        {% endif %}
-    </tbody>
-</table>
+                <tr>
+                    <td colspan="3" class="text-center text-muted">
+                    Tom tabell.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

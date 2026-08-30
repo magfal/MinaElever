@@ -1,0 +1,56 @@
+.codes-print {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+}
+
+.codes-print-header {
+    height: auto;
+    min-height: 1cm;
+    padding: 0.2cm 0;
+
+    display: grid;
+    grid-template-columns: 1fr 3cm 4cm;
+    align-items: center;
+
+    border-bottom: 2px solid #000;
+}
+
+.codes-print-row {
+    height: 2cm;
+    padding: 0.2cm 0;
+
+    border-bottom: 1px solid #000;
+
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.login-instruction {
+    font-size: 9pt;
+    margin-bottom: 0.15cm;
+}
+
+.student-info {
+    display: grid;
+    grid-template-columns: 1fr 3cm 4cm;
+    align-items: center;
+}
+
+.student-code {
+    font-size: 14pt;
+    letter-spacing: 0.08em;
+}
+
+@media print {
+
+    .codes-print {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .print-button {
+        display: none !important;
+    }
+}

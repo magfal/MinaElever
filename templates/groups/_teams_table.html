@@ -29,6 +29,15 @@
                             </td>
                             <td class="text-end">
                                 <button
+                                    class="btn btn-sm btn-outline-secondary"
+                                    hx-get="{{ url_for('groups.list_modal', entity_type='team', entity_id=team.id) }}"
+                                    hx-target="#groupModalContent"
+                                    hx-swap="innerHTML"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#groupModal">
+                                    Visa
+                                </button>
+                                <button
                                     class="btn btn-sm btn-outline-primary edit-team-btn"
                                     hx-get="{{ url_for('groups.edit_team_modal', team_id=team.id) }}"
                                     hx-target="#teamModalContent"

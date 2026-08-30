@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, g, request, redirect, url_for, flash, make_response
+from flask import Blueprint, render_template, g, request, redirect, url_for, flash, make_response, abort
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
@@ -151,10 +151,7 @@ def edit_group(group_id):
 
 @groups_bp.post("/delete_group/<int:group_id>")
 def delete_group(group_id):
-    group = db.session.get(
-        Group,
-        group_id
-    )
+    group = db.session.get(Group, group_id)
     if not group:
         flash("Klassen hittades inte.", "danger")
         return redirect(url_for("groups.manage"))
@@ -286,3 +283,46 @@ def delete_team(team_id):
     db.session.commit()
     flash(f"Klassen {team.name} togs bort permanent.", "success")
     return redirect(url_for("groups.manage"))
+
+@groups_bp.get("/list_modal/<string:entity_type>/<int:entity_id>")
+def list_modal(entity_type, entity_id):
+    if entity_type == "group":
+        entity = db.get_or_404(Group, entity_id)
+    elif entity_type == "team":
+        entity = db.get_or_404(Team, entity_id)
+    else:
+        abort(404)
+    
+    students = sorted(
+        entity.students,
+        key=lambda student: student.name.lower()
+    )
+    print_url = url_for(
+        "groups.list_print",
+        entity_type=entity_type,
+        entity_id=entity.id
+        )
+    return render_template(
+        "groups/_list_modal.html",
+        student_group=entity,
+        students=students,
+        print_url=print_url
+    )
+
+@groups_bp.get("/list_print/<string:entity_type>/<int:entity_id>")
+def list_print(entity_type, entity_id):
+    if entity_type == "group":
+        entity = db.get_or_404(Group, entity_id)
+    elif entity_type == "team":
+        entity = db.get_or_404(Team, entity_id)
+    else:
+        abort(404)
+    students = sorted(
+        entity.students,
+        key=lambda student: student.name.lower()
+    )
+    return render_template(
+        "groups/_list_print.html",
+        student_group=entity,
+        students=students
+    )

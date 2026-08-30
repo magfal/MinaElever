@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="sv">
+    <head>
+        <meta charset="utf-8">
+        <title>
+            {{ student_group.name }} – Elevkoder
+        </title>
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='css/style.css') }}">
+    </head>
+    <body class="codes-print">
+        <h1>{{ student_group.name }}</h1>
+        <div class="codes-print-table">
+            <!-- Rubrikrad -->
+            <div class="codes-print-row codes-print-header">
+                <strong class="student-name">Namn</strong>
+                <strong class="student-group">Klass</strong>
+                <strong class="student-code">Kod</strong>
+            </div>
+            <!-- Elever -->
+            {% for student in students %}
+                <div class="codes-print-row">
+
+                    <div class="login-instruction">
+                        Gå till <strong>www.spåren.com</strong> och logga in med koden nedan.
+                    </div>
+
+                    <div class="student-info">
+                        <span class="student-name">
+                            {{ student.name }}
+                        </span>
+
+                        <span class="student-group">
+                            {{ student.group.name }}
+                        </span>
+
+                        <strong class="student-code">
+                            {{ student.login_code }}
+                        </strong>
+                    </div>
+
+                </div>
+            {% endfor %}
+        </div>
+        <!-- Skriv ut-knapp. Försvinner vid utskrift -->
+        <button
+            class="btn btn-primary print-button mt-4"
+            onclick="window.print()">
+            <i class="bi bi-printer"></i>
+            Skriv ut
+        </button>
+    </body>
+</html>

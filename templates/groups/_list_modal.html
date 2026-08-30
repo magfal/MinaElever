@@ -1,0 +1,46 @@
+<div class="modal-header">
+    <h5 class="modal-title">
+        {{ student_group.name }}
+    </h5>
+    <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="modal"
+        aria-label="Stäng">
+    </button>
+</div>
+<div class="modal-body">
+    {% if students %}
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Elev</th>
+                        <th>Kod</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                        <tr>
+                            <td>{{ student.name }}</td>
+                            <td>{{ student.login_code }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted mb-0">
+            Klassen/gruppen har inga elever.
+        </p>
+    {% endif %}
+
+</div>
+<div class="modal-footer">
+    <a
+        class="btn btn-primary"
+        href="{{ print_url }}"
+        target="_blank">
+        Skriv ut
+    </a>
+</div>
