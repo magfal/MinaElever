@@ -46,7 +46,7 @@
                     Tagg
                 </label>
                 <select
-                    class="form-select tomselect-create"
+                    class="form-select tomselect-filter"
                     name="tag_id">
                     <option value="">
                         Alla taggar
@@ -54,7 +54,7 @@
                     {% for tag in tags %}
                         <option
                             value="{{ tag.id }}"
-                            {% if request.args.get('tag_id', type=int) == tag.id %}
+                            {% if tag_id == tag.id %}
                                 selected
                             {% endif %}>
                             {{ tag.name }}
@@ -76,7 +76,7 @@
                     {% for tag_type in tag_types %}
                         <option
                             value="{{ tag_type.name }}"
-                            {% if request.args.get('tag_type') == tag_type.name %}
+                            {% if tag_type == tag_type.name %}
                                 selected
                             {% endif %}>
                             {{ tag_type.value }}
@@ -98,7 +98,7 @@
                     {% for question_type in question_types %}
                         <option
                             value="{{ question_type.name }}"
-                            {% if request.args.get('question_type') == question_type.name %}
+                            {% if question_type == question_type.name %}
                                 selected
                             {% endif %}>
                             {{ question_type.value }}

@@ -13,14 +13,12 @@ from .services.utils import utc_now
 class QuestionType(enum.Enum):
     TEXT = "Text"
     NUMBER = "Tal"
-    BOOLEAN = "Boolean"
+    BOOLEAN = "Sant/Falskt"
     DATE = "Datum"
-    FORMULA = "Formel"
     SLIDER = "Slider"
     SINGLE_CHOICE = "Enkelvalsvar"
     MULTIPLE_CHOICE = "Flervalssvar"
     FILE_UPLOAD = "Filuppladdning"
-    CSV_IMPORT = "CSV-import"
 
 class TagType(enum.Enum):
     SUBJECT = "Ämne"
@@ -63,6 +61,13 @@ question_tag_link = Table(
     "question_tag_link",
     Base.metadata,
     Column("question_id", ForeignKey("questions.id"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id"), primary_key=True),
+)
+
+media_tag_link = Table(
+    "media_tag_link",
+    Base.metadata,
+    Column("media_id", ForeignKey("media.id"), primary_key=True),
     Column("tag_id", ForeignKey("tags.id"), primary_key=True),
 )
 
@@ -110,7 +115,7 @@ class QuestionTemplateLink(Base):
     extra_data: Mapped[dict|None] = mapped_column(JSON)
     # Relationer
     template: Mapped["Template"] = relationship(back_populates="question_links")
-    question: Mapped["Question"] = relationship(back_populates="question_links")
+    question: Mapped["Question"] = relationship(back_populates="template_links")
 
 # ------------------------------------------------------
 # CORE TABLES (QUESTION, TEMPLATE, ASSIGNMENT, RESPONSE
@@ -122,12 +127,12 @@ class Question(Base):
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     text: Mapped[str] = mapped_column(Text)
     question_type: Mapped[QuestionType] = mapped_column(Enum(QuestionType), default=QuestionType.TEXT, nullable=False)
-    expected_answer: Mapped[dict|None] = mapped_column(JSON)
+    expected_answer: Mapped[dict|None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)    
     # Relationer
     author: Mapped[User] = relationship(back_populates="questions_created", foreign_keys=[author_id])
     choices: Mapped[list["Choice"]] = relationship(back_populates="question", cascade="all, delete-orphan")
-    question_links: Mapped[list["QuestionTemplateLink"]] = relationship(back_populates="question", cascade="all, delete-orphan")
+    template_links: Mapped[list["QuestionTemplateLink"]] = relationship(back_populates="question", cascade="all, delete-orphan")
     responses: Mapped[list["Response"]] = relationship(back_populates="question")
     tags: Mapped[list[Tag]] = relationship(secondary=question_tag_link, back_populates="questions")
     media: Mapped[list[Media]] = relationship(secondary=question_media_link, back_populates="questions")
@@ -157,6 +162,7 @@ class Assignment(Base):
     # Relationer
     author: Mapped[User] = relationship(back_populates="assignments_created", foreign_keys=[author_id])
     template: Mapped[Template] = relationship(back_populates="assignments")
+    responses: Mapped[list[Response]] = relationship(back_populates="assignment")
     students: Mapped[list[Student]] = relationship(secondary=student_assignment_link, back_populates="assignments")
 
 class Response(Base):
@@ -166,6 +172,7 @@ class Response(Base):
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     question_id: Mapped[int] = mapped_column(ForeignKey("questions.id"), nullable=True)
     template_id: Mapped[int] = mapped_column(ForeignKey("templates.id"), nullable=True)
+    assignment_id: Mapped[int|None] = mapped_column(ForeignKey("assignments.id"), nullable=True, index=True)
     parent_response_id: Mapped[int|None] = mapped_column(ForeignKey("responses.id"),nullable=True)
     answer:Mapped[dict|None] = mapped_column(JSON)
     student_question: Mapped[str|None] = mapped_column(Text)
@@ -177,6 +184,7 @@ class Response(Base):
     # Relationer
     student: Mapped[Student] = relationship(back_populates="responses", foreign_keys=[student_id])
     author: Mapped[User] = relationship(back_populates="responses_created", foreign_keys=[author_id])
+    assignment: Mapped[Assignment|None] = relationship(back_populates="responses")
     template: Mapped[Template] = relationship(back_populates="responses")
     question: Mapped[Question] = relationship(back_populates="responses")
     media: Mapped[list[Media]] = relationship(secondary=response_media_link, back_populates="responses")
@@ -227,7 +235,6 @@ class User(Base):
     __mapper_args__ = {
         "polymorphic_identity": "user",
         "polymorphic_on": type}
-
 
 class Teacher(User):
     __tablename__ = "teachers"
@@ -319,12 +326,13 @@ class Tag(Base):
     tag_type: Mapped[TagType] = mapped_column(Enum(TagType), nullable=False)
     # Relationer
     questions: Mapped[list["Question"]] = relationship(secondary=question_tag_link, back_populates="tags")
+    media: Mapped[list["Media"]] = relationship(secondary=media_tag_link, back_populates="tags")
 
 class Choice(Base): 
     __tablename__ = 'choices'
     id: Mapped[int] = mapped_column(primary_key=True)
     question_id: Mapped[int] = mapped_column(ForeignKey('questions.id'))
-    text: Mapped[str] = mapped_column(String(200))
+    text: Mapped[str] = mapped_column(Text)
     is_correct: Mapped[bool] = mapped_column(default=False)
     # Relationer
     question: Mapped["Question"] = relationship(back_populates="choices")
@@ -345,12 +353,13 @@ class RememberToken(Base):
 class Media(Base):
     __tablename__ = "media"
     id: Mapped[int] = mapped_column(primary_key=True)
-    filename: Mapped[str]
-    filepath: Mapped[str]
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    filepath: Mapped[str] = mapped_column(String(500), nullable=False)
     media_type: Mapped[MediaType] = mapped_column(Enum(MediaType))
-    mime_type: Mapped[str | None]
-    size_bytes: Mapped[int | None]
+    mime_type: Mapped[str | None] = mapped_column(String(120))
+    size_bytes: Mapped[int | None] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     # Relationer
     questions: Mapped[list[Question]] = relationship(secondary=question_media_link, back_populates="media")
     responses: Mapped[list[Response]] = relationship(secondary=response_media_link, back_populates="media")
+    tags: Mapped[list["Tag"]] = relationship(secondary=media_tag_link, back_populates="media")

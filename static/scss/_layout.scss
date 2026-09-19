@@ -1,3 +1,33 @@
 .page-header {
     margin-bottom: 1.5rem;
 }
+
+#questionPreview {
+    min-height: 100px;
+}
+
+#questionPreview p:last-child {
+    margin-bottom: 0;
+}
+
+#questionPreview mjx-container[display="true"] {
+    margin: 1rem 0;
+}
+
+#questionPreview table {
+    @extend .table;
+}
+
+.question-image {
+    max-width: 100%;
+    max-height: 500px;
+    height: auto;
+}
+
+.question-editor {
+    height: 200px;
+    overflow-y: auto;
+}
+
+
+

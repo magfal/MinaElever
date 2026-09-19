@@ -17,6 +17,7 @@
 #
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, render_template
 from sqlalchemy.exc import SQLAlchemyError
@@ -42,6 +43,7 @@ def configure_app(app):
         default_db
     )
     app.config["SECRET_KEY"] = "en-valfri-hemlig-text-sträng"
+    app.config["UPLOAD_FOLDER"] = Path(app.instance_path) / "uploads"
 
 def register_extensions(app):
     """
@@ -72,6 +74,7 @@ def register_blueprints(app):
     from .routes.students import students_bp
     from .routes.groups import groups_bp
     from .routes.questions import questions_bp
+    from .routes.media import media_bp
     from .routes.tags import tags_bp
     from .routes.templates import templates_bp
     from .routes.assignments import assignments_bp
@@ -83,6 +86,7 @@ def register_blueprints(app):
     app.register_blueprint(students_bp)
     app.register_blueprint(groups_bp)
     app.register_blueprint(questions_bp)
+    app.register_blueprint(media_bp)
     app.register_blueprint(tags_bp)
     app.register_blueprint(templates_bp)
     app.register_blueprint(assignments_bp)

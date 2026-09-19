@@ -30,7 +30,8 @@ function initTomSelects(root = document) {
             const tom = new TomSelect(el, {
                 create: true,
                 createOnBlur: true,
-                persist: false
+                persist: false,
+                dropdownParent: "body"
             });
             const button = el
                 .closest(".input-group")
@@ -52,6 +53,16 @@ function initTomSelects(root = document) {
                     }
                 )
             }
+        });
+    root.querySelectorAll(".tomselect-filter")
+        .forEach(el => {
+
+            if (el.tomselect) return;
+
+            new TomSelect(el, {
+                create: false,
+                allowEmptyOption: true
+            });
         });
 }
 
@@ -203,6 +214,772 @@ document.addEventListener("alpine:init", () => {
     }));
 });
 
+// ===============================
+// Question editor
+// ===============================
+
+function setupQuestionPreview() {
+    const textarea = document.getElementById("questionText");
+    const preview = document.getElementById("questionPreview");
+
+    if (!textarea || !preview) {
+        return;
+    }
+
+    function updatePreview() {
+        if (window.MathJax && MathJax.typesetClear) {
+            MathJax.typesetClear([preview]);
+        }
+
+        let html = marked.parse(textarea.value);
+
+        html = html.replace(
+            /\[([^\[\]:]+)(?::(\d+))?\]/g,
+            (match, mediaName, size) => {
+                const mediaId = mediaMap[mediaName];
+
+                if (!mediaId) {
+                    return match;
+                }
+
+                const width = size ? `${size}%` : "100%";
+
+                return `<img
+                    src="/media/file/${mediaId}"
+                    class="question-image my-2"
+                    style="width: ${width};"
+                    alt="${mediaName}">`;
+            }
+        );
+
+        preview.innerHTML = DOMPurify.sanitize(html);
+
+        if (window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([preview]);
+        }
+    }
+
+    textarea.addEventListener("input", updatePreview);
+    updatePreview();
+}
+
+function setupQuestionFullRender(container = document) {
+    const renderedQuestions = container.querySelectorAll(
+        ".question-rendered"
+    );
+
+    renderedQuestions.forEach((rendered) => {
+        const source = rendered
+            .closest(".question-cell")
+            .querySelector(".question-source");
+
+        if (!source) {
+            return;
+        }
+
+        // Rendera Markdown
+        let html = marked.parse(source.value);
+
+        html = html.replace(
+            /\[([^\[\]:]+)(?::(\d+))?\]/g,
+            (match, mediaName, size) => {
+                const mediaId = mediaMap[mediaName];
+
+                if (!mediaId) {
+                    return match;
+                }
+
+                const width = size ? `${size}%` : "100%";
+
+                return `<img
+                    src="/media/file/${mediaId}"
+                    class="question-image my-2"
+                    style="width: ${width};"
+                    alt="${mediaName}">`;
+            }
+        );
+
+        rendered.innerHTML = DOMPurify.sanitize(html);
+
+        if (window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([rendered]);
+        }
+    });
+}
+
+function setupQuestionPlainText(container = document) {
+    const cells = container.querySelectorAll(
+        ".question-cell"
+    );
+    cells.forEach((cell) => {
+        const source = cell.querySelector(".question-source");
+        const target = cell.querySelector(".question-table-text");
+        if (!source || !target) {
+            return;
+        }
+        let text = source.value;
+        // Bildreferenser → [bild]
+        text = text.replace(
+            /\[([^\[\]:]+)(?::(\d+))?\]/g,
+            "[$1]"
+        );
+        // Markdown-bilder → [bild]
+        text = text.replace(
+            /!\[[^\]]*\]\([^)]*\)/g,
+            "[bild]"
+        );
+        // Fetstil
+        text = text.replace(
+            /\*\*(.*?)\*\*/g,
+            "$1"
+        );
+        text = text.replace(
+            /__(.*?)__/g,
+            "$1"
+        );
+        // Kursiv
+        text = text.replace(
+            /\*(.*?)\*/g,
+            "$1"
+        );
+        text = text.replace(
+            /_(.*?)_/g,
+            "$1"
+        );
+        // Inline code
+        text = text.replace(
+            /`([^`]+)`/g,
+            "$1"
+        );
+        // Markdown-rubriker
+        text = text.replace(
+            /^#{1,6}\s+/gm,
+            ""
+        );
+        // Markdown-listor
+        text = text.replace(
+            /^\s*[-*+]\s+/gm,
+            ""
+        );
+        // Blockquotes
+        text = text.replace(
+            /^\s*>\s?/gm,
+            ""
+        );
+        // LaTeX $$...$$
+        text = text.replace(
+            /\$\$([\s\S]*?)\$\$/g,
+            "$1"
+        );
+        // LaTeX $...$
+        text = text.replace(
+            /\$([^$\n]+)\$/g,
+            "$1"
+        );
+        // Radbrytningar → mellanslag
+        text = text.replace(
+            /\s*\n\s*/g,
+            " "
+        );
+        // Flera mellanslag → ett
+        text = text.replace(
+            /\s+/g,
+            " "
+        );
+        text = text.trim();
+        // Begränsa texten i frågetabellen
+        const maxLength = 180;
+        if (text.length > maxLength) {
+            text = text.substring(0, maxLength).trimEnd() + "…";
+        }
+        target.textContent = text;
+    });
+}
+
+function setupImageReferences() {
+    const questionText = document.getElementById("questionText");
+
+    if (!questionText) {
+        return;
+    }
+
+    document
+        .querySelectorAll(".insert-image-reference")
+        .forEach(button => {
+            button.addEventListener("click", () => {
+                const mediaName = button.dataset.mediaName;
+
+                if (!mediaName) {
+                    return;
+                }
+
+                const reference = `[${mediaName}]`;
+
+                const start = questionText.selectionStart;
+                const end = questionText.selectionEnd;
+
+                questionText.value =
+                    questionText.value.slice(0, start) +
+                    reference +
+                    questionText.value.slice(end);
+
+                questionText.focus();
+
+                const cursorPosition = start + reference.length;
+
+                questionText.setSelectionRange(
+                    cursorPosition,
+                    cursorPosition
+                );
+
+                questionText.dispatchEvent(
+                    new Event("input", { bubbles: true })
+                );
+            });
+        });
+}
+
+function setupMediaEdit() {
+    const modal = document.getElementById("editMediaModal");
+
+    if (!modal) {
+        return;
+    }
+
+    const form = document.getElementById("editMediaForm");
+    const nameInput = document.getElementById("mediaName");
+    const tagSelect = document.getElementById("mediaTags");
+
+    modal.addEventListener("show.bs.modal", (event) => {
+        const button = event.relatedTarget;
+
+        if (!button) {
+            return;
+        }
+
+        const mediaId = button.dataset.mediaId;
+        const mediaName = button.dataset.mediaName;
+        const mediaTags = button.dataset.mediaTags
+            ? button.dataset.mediaTags.split(",")
+            : [];
+
+        console.log("Media tags:", mediaTags);
+        console.log("Select options:", Array.from(tagSelect.options).map(option => ({
+            value: option.value,
+            text: option.text
+        })));
+
+        form.action = `/media/${mediaId}/edit`;
+        nameInput.value = mediaName;
+
+        const tomSelect = tagSelect.tomselect;
+
+        if (tomSelect) {
+            tomSelect.clear(true);
+            tomSelect.setValue(mediaTags, true);
+        } else {
+            Array.from(tagSelect.options).forEach((option) => {
+                option.selected = mediaTags.includes(option.value);
+            });
+        }
+    });
+}
+
+function setupMediaSelection() {
+    const questionText = document.getElementById("questionText");
+
+    if (!questionText) {
+        return;
+    }
+
+    document.addEventListener("click", (event) => {
+        const button = event.target.closest(".media-select-btn");
+
+        if (!button) {
+            return;
+        }
+
+        const mediaName = button.dataset.mediaName;
+
+        if (!mediaName) {
+            return;
+        }
+
+        const imageSyntax = `[${mediaName}]`;
+
+        const start = questionText.selectionStart;
+        const end = questionText.selectionEnd;
+
+        questionText.value =
+            questionText.value.substring(0, start) +
+            imageSyntax +
+            questionText.value.substring(end);
+
+        const cursorPosition = start + imageSyntax.length;
+
+        questionText.focus();
+        questionText.setSelectionRange(
+            cursorPosition,
+            cursorPosition
+        );
+
+        questionText.dispatchEvent(
+            new Event("input", { bubbles: true })
+        );
+    });
+}
+
+// ===============================
+// Question answer fields
+// ===============================
+
+function setupQuestionAnswerFields() {
+    const questionType = document.getElementById("questionType");
+    const answerFields = document.getElementById("answerFields");
+
+    if (!questionType || !answerFields) {
+        return;
+    }
+
+    const questionDataElement =
+        document.getElementById("questionData");
+
+    const questionData = questionDataElement
+        ? JSON.parse(questionDataElement.textContent)
+        : null;
+
+    function addTextAnswer(value = "") {
+        const row = document.createElement("div");
+
+        row.className = "input-group mb-2";
+
+        row.innerHTML = `
+            <input
+                type="text"
+                name="correct_answers"
+                class="form-control"
+                value="${value}"
+                placeholder="Rätt svar">
+
+            <button
+                type="button"
+                class="btn btn-outline-danger remove-answer">
+                Ta bort
+            </button>
+        `;
+
+        row.querySelector(".remove-answer")
+            .addEventListener("click", () => {
+                row.remove();
+            });
+
+        answerFields
+            .querySelector("#textAnswerList")
+            .appendChild(row);
+    }
+
+    function renderTextAnswers() {
+        answerFields.innerHTML = `
+            <label class="form-label">
+                Rätt svar
+            </label>
+
+            <div id="textAnswerList"></div>
+
+            <button
+                type="button"
+                id="addTextAnswer"
+                class="btn btn-outline-secondary btn-sm">
+                + Lägg till rätt svar
+            </button>
+        `;
+
+        document
+            .getElementById("addTextAnswer")
+            .addEventListener("click", () => {
+                addTextAnswer();
+            });
+
+        const answers =
+            questionData?.expected_answer?.answers ?? [];
+
+        if (answers.length > 0) {
+            answers.forEach(answer => {
+                addTextAnswer(answer);
+            });
+        } else {
+            addTextAnswer();
+        }
+    }
+
+    function renderNumberAnswer() {
+        const value =
+            questionData?.expected_answer?.answer ?? "";
+
+        answerFields.innerHTML = `
+            <div class="row g-3">
+
+                <div class="col-12 col-md-6">
+                    <label
+                        for="correctNumber"
+                        class="form-label">
+                        Rätt svar
+                    </label>
+
+                    <input
+                        id="correctNumber"
+                        type="number"
+                        step="any"
+                        name="correct_number"
+                        class="form-control"
+                        value="${value}">
+                </div>
+
+            </div>
+        `;
+    }
+
+    function renderBooleanAnswer() {
+        const value =
+            questionData?.expected_answer?.answer;
+
+        answerFields.innerHTML = `
+            <label class="form-label">
+                Rätt svar
+            </label>
+
+            <div class="form-check">
+
+                <input
+                    class="form-check-input"
+                    type="radio"
+                    name="correct_boolean"
+                    id="correctTrue"
+                    value="true"
+                    ${value === true ? "checked" : ""}>
+
+                <label
+                    class="form-check-label"
+                    for="correctTrue">
+                    Sant
+                </label>
+
+            </div>
+
+            <div class="form-check">
+
+                <input
+                    class="form-check-input"
+                    type="radio"
+                    name="correct_boolean"
+                    id="correctFalse"
+                    value="false"
+                    ${value === false ? "checked" : ""}>
+
+                <label
+                    class="form-check-label"
+                    for="correctFalse">
+                    Falskt
+                </label>
+
+            </div>
+        `;
+    }
+
+    function renderDateAnswer() {
+        const value =
+            questionData?.expected_answer?.answer ?? "";
+
+        answerFields.innerHTML = `
+            <div class="col-12 col-md-6">
+
+                <label
+                    for="correctDate"
+                    class="form-label">
+                    Rätt datum
+                </label>
+
+                <input
+                    id="correctDate"
+                    type="date"
+                    name="correct_date"
+                    class="form-control"
+                    value="${value}">
+
+            </div>
+        `;
+    }
+
+    function renderSliderAnswer() {
+        answerFields.innerHTML = `
+            <div class="row g-3 mb-4">
+
+                <div class="col-12">
+                    <h6>Sliderinställningar</h6>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label
+                        for="sliderMin"
+                        class="form-label">
+                        Minvärde
+                    </label>
+
+                    <input
+                        id="sliderMin"
+                        type="number"
+                        name="slider_min"
+                        class="form-control"
+                        value="0">
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label
+                        for="sliderMax"
+                        class="form-label">
+                        Maxvärde
+                    </label>
+
+                    <input
+                        id="sliderMax"
+                        type="number"
+                        name="slider_max"
+                        class="form-control"
+                        value="100">
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label
+                        for="sliderStep"
+                        class="form-label">
+                        Steg
+                    </label>
+
+                    <input
+                        id="sliderStep"
+                        type="number"
+                        name="slider_step"
+                        class="form-control"
+                        value="1">
+                </div>
+
+            </div>
+
+            <hr>
+
+            <div class="row g-3">
+
+                <div class="col-12">
+                    <h6>Facit (valfritt)</h6>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label
+                        for="correctSliderValue"
+                        class="form-label">
+                        Rätt svar
+                    </label>
+
+                    <input
+                        id="correctSliderValue"
+                        type="number"
+                        step="any"
+                        name="correct_number"
+                        class="form-control">
+                </div>
+
+            </div>
+        `;
+    }
+
+    function renderChoiceAnswers(multiple = false) {
+        const answerType = multiple
+            ? "checkbox"
+            : "radio";
+
+        const correctName = multiple
+            ? "correct_choice_indexes"
+            : "correct_choice_index";
+
+        const title = multiple
+            ? "Flervalsalternativ"
+            : "Svarsalternativ";
+
+        const helpText = multiple
+            ? "Lägg till möjliga svar och markera ett eller flera rätta svar."
+            : "Lägg till möjliga svar och markera det rätta svaret.";
+
+        answerFields.innerHTML = `
+            <div class="mb-3">
+                <h6 class="mb-1">
+                    ${title}
+                </h6>
+
+                <p class="text-muted mb-3">
+                    ${helpText}
+                </p>
+
+                <div id="choiceAnswerList"></div>
+
+                <button
+                    type="button"
+                    id="addChoiceAnswer"
+                    class="btn btn-outline-secondary btn-sm">
+                    + Lägg till svarsalternativ
+                </button>
+            </div>
+        `;
+
+        function updateChoiceIndexes() {
+            const rows = answerFields.querySelectorAll(
+                ".choice-answer-row"
+            );
+
+            rows.forEach((row, index) => {
+                const correctInput = row.querySelector(
+                    "input[type='radio'], input[type='checkbox']"
+                );
+
+                correctInput.value = index;
+            });
+        }
+
+        function addChoiceAnswer(
+            value = "",
+            isCorrect = false
+        ) {
+            const row = document.createElement("div");
+
+            row.className =
+                "input-group mb-2 choice-answer-row";
+
+            row.innerHTML = `
+                <div class="input-group-text">
+                    <input
+                        class="form-check-input mt-0"
+                        type="${answerType}"
+                        name="${correctName}"
+                        aria-label="Rätt svar"
+                        ${isCorrect ? "checked" : ""}>
+                </div>
+
+                <input
+                    type="text"
+                    name="choice_options"
+                    class="form-control"
+                    value="${value}"
+                    placeholder="Svarsalternativ">
+
+                <button
+                    type="button"
+                    class="btn btn-outline-danger remove-choice">
+                    Ta bort
+                </button>
+            `;
+
+            row
+                .querySelector(".remove-choice")
+                .addEventListener("click", () => {
+                    row.remove();
+                    updateChoiceIndexes();
+                });
+
+            answerFields
+                .querySelector("#choiceAnswerList")
+                .appendChild(row);
+
+            updateChoiceIndexes();
+        }
+
+        document
+            .getElementById("addChoiceAnswer")
+            .addEventListener("click", () => {
+                addChoiceAnswer();
+            });
+        const choices =
+            questionData?.choices ?? [];
+
+        if (choices.length > 0) {
+            choices.forEach(choice => {
+                addChoiceAnswer(
+                    choice.text,
+                    choice.is_correct
+                );
+            });
+        } else {
+            addChoiceAnswer();
+            addChoiceAnswer();
+        }
+
+    }
+
+    function renderSingleChoiceAnswer() {
+    renderChoiceAnswers(false);
+    }
+
+
+    function renderMultipleChoiceAnswer() {
+        renderChoiceAnswers(true);
+    }
+
+    function renderFileUploadAnswer() {
+        answerFields.innerHTML = `
+            <div class="text-muted">
+                Den här frågetypen har normalt inget
+                automatiskt rätt svar. Eleven lämnar sitt
+                svar genom att ladda upp en eller flera filer.
+            </div>
+        `;
+    }
+
+    function renderAnswerFields() {
+        switch (questionType.value) {
+
+            case "TEXT":
+                renderTextAnswers();
+                break;
+
+            case "NUMBER":
+                renderNumberAnswer();
+                break;
+
+            case "BOOLEAN":
+                renderBooleanAnswer();
+                break;
+
+            case "DATE":
+                renderDateAnswer();
+                break;
+
+            case "SLIDER":
+                renderSliderAnswer();
+                break;
+
+            case "SINGLE_CHOICE":
+                renderSingleChoiceAnswer();
+                break;
+
+            case "MULTIPLE_CHOICE":
+                renderMultipleChoiceAnswer();
+                break;
+
+            case "FILE_UPLOAD":
+                renderFileUploadAnswer();
+                break;
+
+            default:
+                answerFields.innerHTML = "";
+        }
+    }
+
+    questionType.addEventListener(
+        "change",
+        renderAnswerFields
+    );
+
+    renderAnswerFields();
+}
+
 // ============================================================
 // INITIERING
 // ============================================================
@@ -220,8 +997,21 @@ document.addEventListener("DOMContentLoaded", () => {
             alert.remove();
         }, 4000);
     });
+
+    setupQuestionPreview();
+    setupQuestionPlainText();
+    setupQuestionFullRender();
+    setupQuestionAnswerFields();
+    setupImageReferences();
+    setupMediaEdit();
+    setupMediaSelection();
 });
 
 document.body.addEventListener("htmx:afterSwap", (event) => {
     initTomSelects(event.target);
+});
+
+document.body.addEventListener("htmx:afterSwap", (event) => {
+    setupQuestionPlainText(event.detail.target);
+    setupQuestionFullRender(event.detail.target);
 });

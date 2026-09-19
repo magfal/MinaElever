@@ -21,17 +21,25 @@
             {% if question %}
                 <button
                     type="submit"
+                    form="questionForm"
+                    formaction="{{ url_for(
+                        'questions.copy_question',
+                        question_id=question.id
+                    ) }}"
                     class="btn btn-primary">
                     Kopiera fråga
                 </button>
                 <button
                     type="submit"
-                    class="btn btn-primary">
+                    form="questionForm"
+                    class="btn btn-primary"
+                    {% if question_is_locked %}disabled{% endif %}>
                     Ändra fråga
                 </button>
             {% else %}
                 <button
                     type="submit"
+                    form="questionForm"
                     class="btn btn-primary">
                     Spara fråga
                 </button>
@@ -39,8 +47,10 @@
         </div>
     </div>    
     <!-- FORMULÄR -->
-    <form
+    <form 
+        id="questionForm"
         method="post"
+        enctype="multipart/form-data"
         action="{% if question %}
                     {{ url_for(
                         'questions.update_question',
@@ -49,27 +59,229 @@
                 {% else %}
                     {{ url_for('questions.create_question') }}
                 {% endif %}">
-        <!-- FRÅGA -->
+    <!-- FRÅGA -->
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-baseline gap-2">
+                <h5 class="mb-0">Fråga</h5>
+                <small class="text-muted">(markdown och latex) </small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label
+                            for="questionText"
+                            class="form-label">
+                            Frågetext
+                        </label>
+                        <textarea
+                            id="questionText"
+                            name="text"
+                            class="form-control question-editor"
+                            required>{{ question.text if question else "" }}</textarea>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">
+                            Förhandsvisning
+                        </label>
+                        <div
+                            id="questionPreview"
+                            class="border rounded p-3 bg-body-secondary question-preview question-editor">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- TAGGAR -->
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">
-                    Fråga
+                    Taggar
                 </h5>
             </div>
             <div class="card-body">
-                <div class="mb-3">
-                    <label
-                        for="questionText"
-                        class="form-label">
-                        Frågetext
-                    </label>
-                    <textarea
-                        id="questionText"
-                        name="text"
-                        class="form-control"
-                        rows="4"
-                        required>{{ question.text if question else "" }}</textarea>
+                <div class="row g-3">
+                    <!-- ÄMNE -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label
+                            for="subjectTags"
+                            class="form-label">
+                            Ämne
+                        </label>
+                        <select
+                            id="subjectTags"
+                            name="subject_tag_ids"
+                            class="form-select tomselect-create"
+                            multiple>
+                            {% for tag in tags %}
+                                {% if tag.tag_type.name == "SUBJECT" %}
+                                    <option
+                                        value="{{ tag.id }}"
+                                        {% if question
+                                            and tag in question.tags %}
+                                            selected
+                                        {% endif %}>
+                                        {{ tag.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- OMRÅDE -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label
+                            for="areaTags"
+                            class="form-label">
+                            Område
+                        </label>
+                        <select
+                            id="areaTags"
+                            name="area_tag_ids"
+                            class="form-select tomselect-create"
+                            multiple>
+                            {% for tag in tags %}
+                                {% if tag.tag_type.name == "AREA" %}
+                                    <option
+                                        value="{{ tag.id }}"
+                                        {% if question
+                                            and tag in question.tags %}
+                                            selected
+                                        {% endif %}>
+                                        {{ tag.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- KORTLEK -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label
+                            for="deckTags"
+                            class="form-label">
+                            Kortlek
+                        </label>
+                        <select
+                            id="deckTags"
+                            name="deck_tag_ids"
+                            class="form-select tomselect-create"
+                            multiple>
+                            {% for tag in tags %}
+                                {% if tag.tag_type.name == "DECK" %}
+                                    <option
+                                        value="{{ tag.id }}"
+                                        {% if question
+                                            and tag in question.tags %}
+                                            selected
+                                        {% endif %}>
+                                        {{ tag.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- ALLMÄN -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label
+                            for="otherTags"
+                            class="form-label">
+                            Allmän
+                        </label>
+                        <select
+                            id="otherTags"
+                            name="other_tag_ids"
+                            class="form-select tomselect-create"
+                            multiple>
+                            {% for tag in tags %}
+                                {% if tag.tag_type.name == "OTHER" %}
+                                    <option
+                                        value="{{ tag.id }}"
+                                        {% if question
+                                            and tag in question.tags %}
+                                            selected
+                                        {% endif %}>
+                                        {{ tag.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
+            </div>
+        </div>
+        <!-- MEDIA -->
+        <div class="card mt-4">
+            <div class="card-header d-flex align-items-baseline gap-2">
+                <h5 class="mb-0">Bilder</h5>
+                <small class="text-muted">(klicka på en bild för att lägga till i frågan, [bild:50] ger 50% storlek) </small>
+            </div>
+            <div class="card-body">
+                <div
+                    id="mediaFilterForm"
+                    class="row g-3 mb-4"
+                    hx-get="{{ url_for('media.grid') }}"
+                    hx-trigger="input changed delay:400ms, change"
+                    hx-target="#question-media-grid"
+                    hx-include="#mediaFilterForm input, #mediaFilterForm select">
+                    <div class="col-12 col-md-4">
+                        <label for="questionMediaSearch" class="form-label">
+                            Sök namn
+                        </label>
+                        <input
+                            type="search"
+                            id="questionMediaSearch"
+                            name="search"
+                            class="form-control"
+                            placeholder="Sök bildnamn...">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="questionMediaTags" class="form-label">
+                            Taggar
+                        </label>
+                        <select
+                            id="questionMediaTags"
+                            name="tag_ids"
+                            class="form-select tomselect-filter"
+                            multiple>
+                            {% for tag in media_tags %}
+                                <option value="{{ tag.id }}">
+                                    {{ tag.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label for="questionMediaDateFrom" class="form-label">
+                            Från
+                        </label>
+                        <input
+                            type="date"
+                            id="questionMediaDateFrom"
+                            name="date_from"
+                            class="form-control">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label for="questionMediaDateTo" class="form-label">
+                            Till
+                        </label>
+                        <input
+                            type="date"
+                            id="questionMediaDateTo"
+                            name="date_to"
+                            class="form-control">
+                    </div>
+                </div>
+                <div id="question-media-grid" class="row g-4">
+                    {% set selectable = true %}
+                    {% set media_manage = false %}
+                    {% include "media/_grid.html" %}
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-baseline gap-2">
+                <h5 class="mb-0">Svar</h5>
+                <small class="text-muted">(att ge en fråga ett svar är valfritt, men möjliggör automaträtting) </small>
+            </div>
+            <div class="card-body">
                 <div class="col-12 col-md-4">
                     <label
                         for="questionType"
@@ -94,142 +306,14 @@
                     </select>
                 </div>
             </div>
-        </div>
-        <!-- TAGGAR -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    Taggar
-                </h5>
-            </div>
             <div class="card-body">
-                <div class="row g-3">
-                    <!-- ÄMNE -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label
-                            for="subjectTags"
-                            class="form-label">
-                            Ämne
-                        </label>
-                        <select
-                            id="subjectTags"
-                            name="tag_ids"
-                            class="form-select tomselect-create">
-                            <option value="">
-                                Välj ämne
-                            </option>
-                            {% for tag in tags %}
-                                {% if tag.tag_type.name == "SUBJECT" %}
-                                    <option
-                                        value="{{ tag.id }}"
-                                        {% if question
-                                            and tag in question.tags %}
-                                            selected
-                                        {% endif %}>
-                                        {{ tag.name }}
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <!-- OMRÅDE -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label
-                            for="areaTags"
-                            class="form-label">
-                            Område
-                        </label>
-                        <select
-                            id="areaTags"
-                            name="tag_ids"
-                            class="form-select tomselect-create">
-                            <option value="">
-                                Välj område
-                            </option>
-                            {% for tag in tags %}
-                                {% if tag.tag_type.name == "AREA" %}
-                                    <option
-                                        value="{{ tag.id }}"
-                                        {% if question
-                                            and tag in question.tags %}
-                                            selected
-                                        {% endif %}>
-                                        {{ tag.name }}
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <!-- KORTLEK -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label
-                            for="deckTags"
-                            class="form-label">
-                            Kortlek
-                        </label>
-                        <select
-                            id="deckTags"
-                            name="tag_ids"
-                            class="form-select tomselect-create">
-                            <option value="">
-                                Välj kortlek
-                            </option>
-                            {% for tag in tags %}
-                                {% if tag.tag_type.name == "DECK" %}
-                                    <option
-                                        value="{{ tag.id }}"
-                                        {% if question
-                                            and tag in question.tags %}
-                                            selected
-                                        {% endif %}>
-                                        {{ tag.name }}
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <!-- ALLMÄN -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label
-                            for="otherTags"
-                            class="form-label">
-                            Allmän
-                        </label>
-                        <select
-                            id="otherTags"
-                            name="tag_ids"
-                            class="form-select tomselect-create">
-                            <option value="">
-                                Välj tagg
-                            </option>
-                            {% for tag in tags %}
-                                {% if tag.tag_type.name == "OTHER" %}
-                                    <option
-                                        value="{{ tag.id }}"
-                                        {% if question
-                                            and tag in question.tags %}
-                                            selected
-                                        {% endif %}>
-                                        {{ tag.name }}
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- SVAR -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    Svar
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="text-muted">
-                    Svarsfält för den valda svarstypen kommer här.
-                </div>
+                <p class="text-muted mb-3">
+                    Rätt svar är frivilligt. Om facit lämnas tomt
+                    kan frågan fortfarande användas, men den
+                    självrättas inte.
+                </p>
+                <div id="answerFields"></div>
+
             </div>
         </div>
     </form>
@@ -237,4 +321,11 @@
 {% endblock %}
 
 {% block scripts %}
+<script id="questionData" type="application/json">
+    {{ question_data | tojson }}
+</script>
+
+<script>
+    const mediaMap = {{ media_map | tojson }};
+</script>
 {% endblock %}

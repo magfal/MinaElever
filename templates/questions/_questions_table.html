@@ -12,22 +12,6 @@
                     <i class="bi bi-chevron-expand ms-1"></i>
                 </th>
                 <th class="sortable">
-                    Ämne
-                    <i class="bi bi-chevron-expand ms-1"></i>
-                </th>
-                <th class="sortable">
-                    Område
-                    <i class="bi bi-chevron-expand ms-1"></i>
-                </th>
-                <th class="sortable">
-                    Kortlek
-                    <i class="bi bi-chevron-expand ms-1"></i>
-                </th>
-                <th class="sortable">
-                    Allmän
-                    <i class="bi bi-chevron-expand ms-1"></i>
-                </th>
-                <th class="sortable">
                     Svarstyp
                     <i class="bi bi-chevron-expand ms-1"></i>
                 </th>
@@ -38,44 +22,16 @@
         {% for question in questions %}
             <tr>
                 <!-- FRÅGA -->
-                <td>
-                    {{ question.text }}
+                <td class="question-cell">
+                    <div class="question-table-text"></div>
+                    <textarea
+                        class="question-source d-none"
+                        aria-hidden="true"
+                    >{{ question.text }}</textarea>
                 </td>
                 <!-- SKAPAD -->
                 <td>
                     {{ question.created_at.strftime("%Y-%m-%d") }}
-                </td>
-                <!-- ÄMNE -->
-                <td>
-                    {% for tag in question.tags %}
-                        {% if tag.tag_type.name == "SUBJECT" %}
-                            {{ tag.name }}
-                        {% endif %}
-                    {% endfor %}
-                </td>
-                <!-- OMRÅDE -->
-                <td>
-                    {% for tag in question.tags %}
-                        {% if tag.tag_type.name == "AREA" %}
-                            {{ tag.name }}
-                        {% endif %}
-                    {% endfor %}
-                </td>
-                <!-- KORTLEK -->
-                <td>
-                    {% for tag in question.tags %}
-                        {% if tag.tag_type.name == "DECK" %}
-                            {{ tag.name }}
-                        {% endif %}
-                    {% endfor %}
-                </td>
-                <!-- ALLMÄN -->
-                <td>
-                    {% for tag in question.tags %}
-                        {% if tag.tag_type.name == "OTHER" %}
-                            {{ tag.name }}
-                        {% endif %}
-                    {% endfor %}
                 </td>
                 <!-- SVARSTYP -->
                 <td>
@@ -91,6 +47,19 @@
                         class="btn btn-sm btn-outline-primary">
                         Ändra
                     </a>
+                    {% if not question.template_links and not question.responses %}
+                        <form
+                            method="POST"
+                            action="{{ url_for('questions.delete_question', question_id=question.id) }}"
+                            class="d-inline"
+                            onsubmit="return confirm('Ta bort frågan permanent?');"                        >
+                            <button
+                                type="submit"
+                                class="btn btn-sm btn-outline-danger">
+                                Ta bort
+                            </button>
+                        </form>
+                    {% endif %}
                 </td>
             </tr>
         {% else %}

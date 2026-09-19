@@ -28,6 +28,9 @@
                     <a class="nav-link" href="{{ url_for('questions.manage') }}">
                         Frågor
                     </a>
+                    <a class="nav-link" href="{{ url_for('media.manage') }}">
+                        Bilder
+                    </a>
                     <a class="nav-link" href="{{ url_for('tags.manage') }}">
                         Taggar
                     </a>
@@ -93,6 +96,29 @@
         <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
         <script src="{{ url_for('static', filename='js/common.js') }}"></script>
         <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+        <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+        <script>
+            window.MathJax = {
+                tex: {
+                    inlineMath: [
+                        ['$', '$'],
+                        ['\\(', '\\)']
+                    ],
+                    displayMath: [
+                        ['$$', '$$'],
+                        ['\\[', '\\]']
+                    ]
+                },
+                svg: {
+                    fontCache: 'global'
+                }
+            };
+        </script>
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+        </script>
         {% block scripts %}{% endblock %}
     </body>
 </html>

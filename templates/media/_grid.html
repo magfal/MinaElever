@@ -1,0 +1,91 @@
+{% for item in media %}
+    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+        <div class="card h-100">
+            {% if selectable %}
+                <button
+                    type="button"
+                    class="media-select-btn p-0 border-0 bg-transparent w-100"
+                    data-media-id="{{ item.id }}"
+                    data-media-name="{{ item.name }}"
+                    title="Infoga bilden">
+                    <img
+                        src="{{ url_for('media.media_file', media_id=item.id) }}"
+                        class="card-img-top"
+                        alt="{{ item.name }}">
+                </button>
+            {% else %}
+                <img
+                    src="{{ url_for('media.media_file', media_id=item.id) }}"
+                    class="card-img-top"
+                    alt="{{ item.name }}">
+            {% endif %}
+
+            <div class="card-body d-flex flex-column">
+                <div class="mt-auto pt-3">
+
+                    {% if item.tags %}
+                        <div class="mb-2">
+                            {% for tag in item.tags %}
+                                <span class="badge text-bg-secondary">
+                                    {{ tag.name }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="fw-semibold">
+                        {{ item.name }}
+                    </div>
+
+                    <div class="small text-muted">
+                        {{ item.created_at.strftime("%Y-%m-%d") }}
+                    </div>
+
+                    {% if media_manage %}
+                        <div class="mt-2">
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary edit-media-btn"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editMediaModal"
+                                data-media-id="{{ item.id }}"
+                                data-media-name="{{ item.name }}"
+                                data-media-tags="{{ item.tags | map(attribute='id') | join(',') }}">
+                                Redigera
+                            </button>
+
+                            {% if item.questions %}
+                                <a
+                                    href="{{ url_for('questions.manage', media_id=item.id) }}"
+                                    class="btn btn-sm btn-outline-primary">
+                                    Används i {{ item.questions|length }}
+                                    {% if item.questions|length == 1 %}
+                                        fråga
+                                    {% else %}
+                                        frågor
+                                    {% endif %}
+                                </a>
+                            {% else %}
+                                <form
+                                    method="post"
+                                    action="{{ url_for('media.delete', media_id=item.id) }}"
+                                    class="d-inline"
+                                    onsubmit="return confirm('Vill du verkligen ta bort bilden?');">
+                                    <button
+                                        type="submit"
+                                        class="btn btn-sm btn-outline-danger">
+                                        Ta bort
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="col-12">
+        <p class="text-muted">Inga bilder hittades.</p>
+    </div>
+{% endfor %}

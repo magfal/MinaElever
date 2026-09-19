@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+    <!-- SIDHUVUD -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0"> Bilder </h2>
+        <form method="post" action="{{ url_for('media.upload') }}" enctype="multipart/form-data">
+            <label for="mediaFile" class="btn btn-primary mb-0"> Ladda upp bild </label>
+            <input type="file" id="mediaFile" name="image" accept="image/jpeg,image/png,image/webp" class="d-none" onchange="this.form.submit()">
+        </form>
+    </div>
+    <!-- Filtreringsformulär -->
+    <form
+        method="get"
+        class="row g-3 mb-4"
+        hx-get="{{ url_for('media.grid') }}"
+        hx-trigger="input changed delay:400ms, change"
+        hx-target="#media-grid"
+        hx-push-url="true">
+
+        <div class="col-12 col-md-4">
+            <label for="searchName" class="form-label">
+                Bild
+            </label>
+
+            <input
+                type="search"
+                id="searchName"
+                name="search"
+                class="form-control"
+                value="{{ search }}"
+                placeholder="Sök bildnamn...">
+        </div>
+
+        <div class="col-12 col-md-4">
+            <label for="searchTags" class="form-label">
+                Taggar
+            </label>
+
+            <select
+                id="searchTags"
+                name="tag_ids"
+                class="form-select tomselect-filter"
+                multiple>
+
+                {% for tag in tags %}
+                    <option
+                        value="{{ tag.id }}"
+                        {% if tag.id in selected_tag_ids %}selected{% endif %}>
+                        {{ tag.name }}
+                    </option>
+                {% endfor %}
+
+            </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+            <label for="dateFrom" class="form-label">
+                Från
+            </label>
+
+            <input
+                type="date"
+                id="dateFrom"
+                name="date_from"
+                class="form-control"
+                value="{{ date_from }}">
+        </div>
+
+        <div class="col-6 col-md-2">
+            <label for="dateTo" class="form-label">
+                Till
+            </label>
+
+            <input
+                type="date"
+                id="dateTo"
+                name="date_to"
+                class="form-control"
+                value="{{ date_to }}">
+        </div>
+
+    </form>
+    <!-- Senast uppladdade -->
+    <div class="card">
+        <div class="card-body">
+            <div id="media-grid" class="row g-4">
+                {% set selectable = false %}
+                {% set media_manage = true %}
+                {% include "media/_grid.html" %}
+            </div>  
+        </div>
+    </div>
+</div>
+<!-- Modal för redigering av media -->
+<div
+    class="modal fade"
+    id="editMediaModal"
+    tabindex="-1"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form
+                id="editMediaForm"
+                method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Redigera bild
+                    </h5>
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Stäng">
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label
+                            for="mediaName"
+                            class="form-label">
+                            Namn
+                        </label>
+                        <input
+                            type="text"
+                            id="mediaName"
+                            name="name"
+                            class="form-control"
+                            required>
+                    </div>
+                    <div class="mb-3">
+                        <label
+                            for="mediaTags"
+                            class="form-label">
+                            Taggar
+                        </label>
+                        <select
+                            id="mediaTags"
+                            name="tag_ids"
+                            class="form-select tomselect-create"
+                            multiple>
+                            {% for tag in tags %}
+                                <option
+                                    value="{{ tag.id }}">
+                                    {{ tag.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button
+                        type="submit"
+                        class="btn btn-primary">
+                        Spara
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
