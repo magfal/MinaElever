@@ -1,20 +1,11 @@
 from flask import Blueprint
-import os
-import random
-import string
 import hashlib
-import secrets
 from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
 from rapidfuzz import fuzz
-from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify, g, make_response, abort
-from sqlalchemy import select, delete, and_, or_
-from sqlalchemy.exc import IntegrityError
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template, request, redirect, session, url_for, flash, g, make_response
+from sqlalchemy import select, delete
 from app.extensions import db
-from app.models import QuestionType, TagType, MediaType, TemplateType, PointType
-from app.models import QuestionTemplateLink
-from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
+from app.models import User, Teacher, Student, RememberToken
 from app.services.auth import create_remember_token, redirect_after_login, generate_code
 from flask import current_app
 from app.services.htmx import toast
@@ -48,7 +39,7 @@ def bootstrap():
 def login_get():    
     if g.user:
         return redirect_after_login(g.user)
-    return render_template("login.html")
+    return render_template("auth/login.html")
 
 @auth_bp.post("/login")
 def login_post():
@@ -58,7 +49,7 @@ def login_post():
     )
     if not user:
         response = make_response(render_template(
-            "login.html"))
+            "auth/login.html"))
         toast(response, "Ogiltig kod", "danger")
         return response
     session.clear()

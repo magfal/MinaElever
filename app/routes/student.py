@@ -18,14 +18,14 @@ from app.models import Question, Template, Assignment, Response, User, Teacher, 
 from app.services.auth import generate_code, create_remember_token
 from flask import current_app
 
-dashboard_bp = Blueprint(
-    "dashboard", 
+student_bp = Blueprint(
+    "student", 
     __name__,
-    url_prefix="/dashboard"
+    url_prefix="/student"
 )
 
 # Route för elevdashboard (kollar om eleven är inloggad och visar deras uppgifter, annars skickas de till login-sidan).
-@dashboard_bp.route("/")
+@student_bp.route("/")
 def index():
     if not g.student:
         return redirect("/auth/login")
@@ -35,7 +35,7 @@ def index():
         assignments=g.student.active_assignments
     )
 
-@dashboard_bp.route("/student_view/<int:student_id>")
+@student_bp.route("/student_view/<int:student_id>")
 def student_view(student_id):
     student = db.session.scalar(
         select(Student).where(Student.id == student_id))

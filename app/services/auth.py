@@ -2,11 +2,20 @@ import hashlib
 import secrets
 import random
 from datetime import datetime, timezone, timedelta
-from flask import session, g, request, redirect, url_for, make_response
+from flask import session, g, request, redirect, url_for, make_response, abort
 from sqlalchemy import select, delete
 from ..extensions import db
-from app.models import RememberToken, User
+from app.models import RememberToken, User, Teacher, Student
 from ..config import MAX_TOKENS_PER_STUDENT
+from functools import wraps
+
+def teacher_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if not isinstance(g.user, Teacher):
+            abort(403)
+        return view(*args, **kwargs)
+    return wrapped_view
 
 # Registrerar autentisering som körs före varje request
 def register_auth(app):

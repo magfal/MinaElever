@@ -14,7 +14,7 @@ from app.extensions import db
 from app.models import Media, Tag, TagType, QuestionType, Question, Choice, MediaType 
 from app.services.htmx import toast
 from app.services.auth import logout_everywhere, generate_code
-from app.services.utils import utc_now, save_image
+from app.services.utils import utc_now, utcify
 from app.services.tags import get_selected_tags
 
 questions_bp = Blueprint(
@@ -52,7 +52,7 @@ def question_is_locked(question):
     now = utc_now()
     return any(
         assignment.end_time is not None
-        and assignment.end_time < now
+        and utcify(assignment.end_time) < now
         for link in question.template_links
         for assignment in link.template.assignments
     )

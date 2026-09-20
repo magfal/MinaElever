@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import Response, Student, Group, Team
 from app.services.htmx import toast
-from app.services.auth import logout_everywhere, generate_code
+from app.services.auth import logout_everywhere, generate_code, teacher_required
 
 students_bp = Blueprint(
     "students",
@@ -14,6 +14,7 @@ students_bp = Blueprint(
 )
 
 @students_bp.get("/manage")
+@teacher_required
 def manage():
     search = request.args.get("search", "").strip()
     group_id = request.args.get("group_id", type=int)
@@ -72,12 +73,14 @@ def manage():
     )
 
 @students_bp.get("/new_code")
+@teacher_required
 def generate_student_code_api():
     return jsonify({
         "code": generate_code()
     })
 
 @students_bp.get("/add")
+@teacher_required
 def add():
     groups = db.session.scalars(
         select(Group).order_by(Group.name)
@@ -88,6 +91,7 @@ def add():
     )
 
 @students_bp.post("/add")
+@teacher_required
 def add_update():
     student_list = request.form.get("student_list", "")
     group_id = request.form.get("group_id")
@@ -136,6 +140,7 @@ def add_update():
     return redirect(url_for("students.manage"))
     
 @students_bp.get("/edit/<int:student_id>")
+@teacher_required
 def new_student_modal(student_id):
     student = db.session.get(Student, student_id)
     if student is None:
@@ -156,6 +161,7 @@ def new_student_modal(student_id):
     )
 
 @students_bp.post("/edit/<int:student_id>")
+@teacher_required
 def edit_student_modal(student_id):
     student = db.session.get(Student, student_id)
     if student is None:
@@ -215,6 +221,7 @@ def edit_student_modal(student_id):
     )
 
 @students_bp.post("/update/<int:student_id>")
+@teacher_required
 def update_student(student_id):
     name = request.form.get("name", "").strip()
     group_id = request.form.get("group_id", type=int)
@@ -254,6 +261,7 @@ def update_student(student_id):
     return response
 
 @students_bp.get("/edit_students")
+@teacher_required
 def edit_students():
     student_ids = request.args.getlist("students_ids")
     students = db.session.scalars(
@@ -282,6 +290,7 @@ def edit_students():
     )
 
 @students_bp.post("/edit_students")
+@teacher_required
 def edit_students_action():
     action = request.form.get("action")
     team_id = request.form.get("team_id", type=int)
@@ -355,6 +364,7 @@ def edit_students_action():
 
 
 @students_bp.post("/update_students")
+@teacher_required
 def update_students():
     student_ids = request.form.getlist("student_ids")
     students = db.session.scalars(
@@ -396,6 +406,7 @@ def update_students():
 
 
 @students_bp.route("/create_response", methods=["POST"])
+@teacher_required
 def create_admin_response():
     student_ids = request.form.getlist("student_ids")
     response_type = request.form.get("type")
@@ -415,21 +426,8 @@ def create_admin_response():
         response_type=response_type
     )
 
-# Show student view
-@students_bp.route("/view/<int:student_id>")
-def student_view(student_id):
-
-    student = db.session.get(Student, student_id)
-
-    if not student:
-        abort(404)
-
-    return render_template(
-        "student/view.html",
-        student=student
-    )
-
 @students_bp.route("/timeline/<int:student_id>")
+@teacher_required
 def student_timeline(student_id):
     student = db.session.get(Student, student_id)
     if student is None:
@@ -444,3 +442,15 @@ def student_timeline(student_id):
         student=student,
         responses=responses
         )
+
+@students_bp.get("/<int:student_id>/view")
+@teacher_required
+def view_student(student_id):
+    student = db.session.get(Student, student_id)
+    if student is None:
+        abort(404)
+    return render_template(
+        "dashboard.html",
+        student=student,
+        assignments=student.active_assignments,
+    )

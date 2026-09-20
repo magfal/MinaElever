@@ -11,9 +11,7 @@ templates_bp = Blueprint(
     url_prefix="/templates",
 )
 
-# -------------------------------------------------
 # HJÄLPFUNKTIONER
-# -------------------------------------------------
 def template_is_locked(template):
     now = utc_now()
     return any(
@@ -22,16 +20,11 @@ def template_is_locked(template):
         for assignment in template.assignments
     )
 
-# -------------------------------------------------
-# HANTERA MALLAR
-# -------------------------------------------------
+# Routes
 @templates_bp.get("/manage")
 def manage():
     search = request.args.get("search", "").strip()
-    template_type_name = request.args.get(
-        "template_type",
-        "",
-    ).strip()
+    template_type_name = request.args.get("template_type", "").strip()
     query = (
         select(Template)
         .options(
@@ -45,9 +38,7 @@ def manage():
         )
     if template_type_name:
         try:
-            template_type = TemplateType[
-                template_type_name
-            ]
+            template_type = TemplateType[template_type_name]
         except KeyError:
             template_type = None
         if template_type:
@@ -73,17 +64,12 @@ def manage():
         template_is_locked=template_is_locked,
     )
 
-# -------------------------------------------------
-# NY MALL
-# -------------------------------------------------
-
 @templates_bp.get("/new")
 def new():
     questions = db.session.scalars(
         select(Question)
         .order_by(Question.created_at.desc())
     ).all()
-
     return render_template(
         "templates/new.html",
         template=None,
@@ -91,19 +77,11 @@ def new():
         questions=questions,
     )
 
-
-# -------------------------------------------------
-# SKAPA MALL
-# -------------------------------------------------
-
 @templates_bp.post("/new")
 def create():
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
-    template_type_name = request.form.get(
-        "template_type",
-        "",
-    ).strip()
+    template_type_name = request.form.get("template_type", "").strip()
     if not title:
         flash("Mallen måste ha en titel.", "warning")
         return redirect(url_for("templates.new"))
@@ -166,9 +144,6 @@ def create():
         )
     )
 
-# -------------------------------------------------
-# ÄNDRA MALL
-# -------------------------------------------------
 @templates_bp.get("/edit/<int:template_id>")
 def edit(template_id):
     template = db.session.get(Template, template_id)
@@ -186,10 +161,6 @@ def edit(template_id):
         template_is_locked=template_is_locked(template),
     )
 
-
-# -------------------------------------------------
-# UPPDATERA MALL
-# -------------------------------------------------
 @templates_bp.post("/edit/<int:template_id>")
 def update(template_id):
     template = db.session.get(
@@ -200,18 +171,9 @@ def update(template_id):
         abort(404)
     if template_is_locked(template):
         abort(403)
-    title = request.form.get(
-        "title",
-        "",
-    ).strip()
-    description = request.form.get(
-        "description",
-        "",
-    ).strip()
-    template_type_name = request.form.get(
-        "template_type",
-        "",
-    ).strip()
+    title = request.form.get("title", "").strip()
+    description = request.form.get("description", "").strip()
+    template_type_name = request.form.get("template_type", "").strip()
     if not title:
         flash(
             "Mallen måste ha en titel.",
@@ -241,10 +203,6 @@ def update(template_id):
     template.title = title
     template.description = description or None
     template.template_type = template_type
-
-    # -------------------------------------------------
-    # FRÅGOR
-    # -------------------------------------------------
     question_ids = request.form.getlist(
         "question_ids"
     )
@@ -271,9 +229,7 @@ def update(template_id):
     selected_questions.sort(
         key=lambda item: item[0]
     )
-    # Ta bort gamla länkar.
     template.question_links.clear()
-    # Lägg tillbaka de valda frågorna.
     for order_index, question in enumerate(
         question for _, question in selected_questions
     ):

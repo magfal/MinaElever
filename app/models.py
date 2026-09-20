@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import JSON, Column, Table, String, Enum, Boolean, Text, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
-from .services.utils import utc_now
+from .services.utils import utc_now, utcify
 
 # -------------------------------------------------
 # ENUMS
@@ -267,10 +267,13 @@ class Student(User):
         return [
             assignment
             for assignment in self.assignments
-            if assignment.start_time <= now
-            and (
-                assignment.end_time is None
-                or now <= assignment.end_time
+            if (
+                assignment.start_time is not None
+                and utcify(assignment.start_time) <= now
+                and (
+                    assignment.end_time is None
+                    or utcify(assignment.end_time) >= now
+                )
             )
         ]
 
