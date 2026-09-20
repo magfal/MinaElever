@@ -1,0 +1,92 @@
+<div class="sticky-table-container">
+    <table class="table table-hover mb-0 sticky-table">
+
+        <thead>
+            <tr>
+                <th>Uppgift</th>
+                <th>Beskrivning</th>
+                <th>Start</th>
+                <th>Slut</th>
+                <th class="text-center">Elever</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        {% for assignment in assignments %}
+
+            {% set status = assignment_status(assignment) %}
+
+            <tr>
+
+                <td>
+                    <div class="fw-semibold">
+                        {{ assignment.template.title }}
+                    </div>
+                </td>
+                <td>
+                    {% if assignment.label %}
+                        {{ assignment.label }}
+                    {% else %}
+                        <span class="text-muted">–</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if assignment.start_time %}
+                        {{ assignment.start_time|local_datetime }}
+                    {% else %}
+                        <span class="text-muted">Ej startad</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if assignment.end_time %}
+                        {{ assignment.end_time|local_datetime }}
+                    {% else %}
+                        <span class="text-muted">Ingen sluttid</span>
+                    {% endif %}
+                </td>
+
+                <td class="text-center">
+                    {{ assignment.students|length }}
+                </td>
+
+                <td>
+                    {% if status == "Förberedd" %}
+                        <span class="badge text-bg-info">Förberedd</span>
+                    {% elif status == "Pågående" %}
+                        <span class="badge text-bg-success">Pågående</span>
+                    {% else %}
+                        <span class="badge text-bg-secondary">Avslutad</span>
+                    {% endif %}
+                </td>
+                <td class="text-end">
+                    <a
+                        href="{{ url_for(
+                            'assignments.edit',
+                            assignment_id=assignment.id
+                        ) }}"
+                        class="btn btn-sm btn-outline-primary">
+                        Visa
+                    </a>
+                </td>
+
+            </tr>
+
+        {% else %}
+
+            <tr>
+                <td
+                    colspan="6"
+                    class="text-center text-muted py-4">
+                    Inga uppgifter.
+                </td>
+            </tr>
+
+        {% endfor %}
+
+        </tbody>
+    </table>
+</div>

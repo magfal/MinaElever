@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Hantera uppgifter
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-3">
+
+    <!-- SIDHUVUD -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <h2 class="mb-0">
+            Hantera uppgifter
+        </h2>
+
+        <a
+            href="{{ url_for('assignments.new') }}"
+            class="btn btn-primary">
+            Lägg till uppgift
+        </a>
+
+    </div>
+
+
+    <!-- FILTER -->
+
+    <form
+        class="row g-3 mb-4"
+        hx-get="{{ url_for('assignments.manage') }}"
+        hx-trigger="input changed delay:400ms, change"
+        hx-target="#assignmentsTable"
+        hx-push-url="true">
+
+        <div class="col-12 col-md-4">
+
+            <label
+                for="assignmentSearch"
+                class="form-label">
+                Sök mall
+            </label>
+
+            <input
+                type="search"
+                id="assignmentSearch"
+                name="search"
+                value="{{ search }}"
+                class="form-control"
+                placeholder="Sök mall...">
+
+        </div>
+
+
+        <div class="col-12 col-md-3">
+
+            <label
+                for="assignmentTemplate"
+                class="form-label">
+                Mall
+            </label>
+
+            <select
+                id="assignmentTemplate"
+                name="template_id"
+                class="form-select">
+
+                <option value="">
+                    Alla mallar
+                </option>
+
+                {% for template in templates %}
+
+                    <option
+                        value="{{ template.id }}"
+                        {% if template_id == template.id %}
+                            selected
+                        {% endif %}>
+                        {{ template.title }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+
+        <div class="col-12 col-md-3">
+
+            <label
+                for="assignmentStatus"
+                class="form-label">
+                Status
+            </label>
+
+            <select
+                id="assignmentStatus"
+                name="status"
+                class="form-select">
+
+                <option value="">
+                    Alla
+                </option>
+
+                <option value="Förberedd"
+                    {% if status == "Förberedd" %}selected{% endif %}>
+                    Förberedd
+                </option>
+                <option value="Pågående"
+                    {% if status == "Pågående" %}selected{% endif %}>
+                    Pågående
+                </option>
+                <option value="Avslutad"
+                    {% if status == "Avslutad" %}selected{% endif %}>
+                    Avslutad
+                </option>
+            </select>
+        </div>
+    </form>
+
+    <!-- TABELL -->
+
+    <div id="assignmentsTable">
+
+        {% include "assignments/_assignments_table.html" %}
+
+    </div>
+
+</div>
+{% endblock %}

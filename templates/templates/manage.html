@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Hantera mallar
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-3">
+
+    <!-- SIDHUVUD -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            Hantera mallar
+        </h2>
+
+        <a
+            href="{{ url_for('templates.new') }}"
+            class="btn btn-primary">
+            Lägg till mall
+        </a>
+    </div>
+
+    <!-- FILTER -->
+    <form
+        class="row g-3 mb-4"
+        hx-get="{{ url_for('templates.manage') }}"
+        hx-trigger="input changed delay:400ms, change"
+        hx-target="#templatesTable"
+        hx-push-url="true">
+
+        <div class="col-12 col-md-6">
+            <label
+                for="templateSearch"
+                class="form-label">
+                Sök
+            </label>
+
+            <input
+                type="search"
+                id="templateSearch"
+                name="search"
+                value="{{ search }}"
+                class="form-control"
+                placeholder="Sök mall...">
+        </div>
+
+        <div class="col-12 col-md-4">
+            <label
+                for="templateType"
+                class="form-label">
+                Typ
+            </label>
+
+            <select
+                id="templateType"
+                name="template_type"
+                class="form-select">
+
+                <option value="">
+                    Alla typer
+                </option>
+
+                {% for template_type in template_types %}
+                    <option
+                        value="{{ template_type.name }}"
+                        {% if template_type_name == template_type.name %}
+                            selected
+                        {% endif %}>
+                        {{ template_type.value }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+
+    <!-- TABELL -->
+    <div id="templatesTable">
+        {% include "templates/_templates_table.html" %}
+    </div>
+
+</div>
+{% endblock %}

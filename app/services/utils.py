@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 import os
 import uuid
 from pathlib import Path
@@ -8,19 +9,39 @@ from flask import current_app, request
 from sqlalchemy import select
 from app.extensions import db
 
+
+
+SWEDEN_TZ = ZoneInfo("Europe/Stockholm")
+
+
 # -------------------------------------------------
 # HJÄLPFUNKTIONER
 # -------------------------------------------------
+
 def utc_now():
     return datetime.now(timezone.utc)
+
 
 # Säkerställer att datetime är timezone-aware (UTC)
 def utcify(dt):
     if dt is None:
         return None
+
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
+
     return dt
+
+
+# Konverterar svensk lokal tid till UTC
+def local_to_utc(dt):
+    if dt is None:
+        return None
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=SWEDEN_TZ)
+
+    return dt.astimezone(timezone.utc)
 
 # Sparar en uppladdad bildfil för en fråga, konverterar den till WebP och returnerar metadata.
 def save_image(file):

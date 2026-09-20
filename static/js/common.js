@@ -980,6 +980,275 @@ function setupQuestionAnswerFields() {
     renderAnswerFields();
 }
 
+function setupAssignmentStudents() {
+
+const table = document.getElementById(
+    "assignmentStudentsTable"
+);
+
+if (!table) {
+    return;
+}
+
+const search = document.getElementById(
+    "assignmentStudentSearch"
+);
+
+const group = document.getElementById(
+    "assignmentStudentGroup"
+);
+
+const team = document.getElementById(
+    "assignmentStudentTeam"
+);
+
+const selectAll = document.getElementById(
+    "assignmentSelectAll"
+);
+
+const selectVisible = document.getElementById(
+    "assignmentSelectVisible"
+);
+
+const studentCount = document.getElementById(
+    "assignmentStudentCount"
+);
+
+const selectedStudentCount = document.getElementById(
+    "assignmentSelectedStudentCount"
+);
+
+
+function getRows() {
+
+    return [
+        ...table.querySelectorAll(
+            "tbody tr[data-assignment-student]"
+        )
+    ];
+
+}
+
+
+function getVisibleRows() {
+
+    const searchText = search.value
+        .trim()
+        .toLowerCase();
+
+    const groupId = group.value;
+    const teamId = team.value;
+
+    return getRows().filter(row => {
+
+        const name = row.dataset.name || "";
+        const rowGroup = row.dataset.group || "";
+
+        const rowTeams = row.dataset.teams
+            ? row.dataset.teams.split(",")
+            : [];
+
+        const matchesSearch =
+            !searchText ||
+            name.includes(searchText);
+
+        const matchesGroup =
+            !groupId ||
+            rowGroup === groupId;
+
+        const matchesTeam =
+            !teamId ||
+            rowTeams.includes(teamId);
+
+        return (
+            matchesSearch &&
+            matchesGroup &&
+            matchesTeam
+        );
+
+    });
+
+}
+
+
+function update() {
+
+    const rows = getRows();
+    const visibleRows = getVisibleRows();
+
+    rows.forEach(row => {
+
+        row.style.display =
+            visibleRows.includes(row)
+                ? ""
+                : "none";
+
+    });
+
+    studentCount.textContent =
+        visibleRows.length;
+
+    const checkboxes = getRows()
+        .map(row =>
+            row.querySelector(
+                ".student-checkbox"
+            )
+        )
+        .filter(Boolean);
+
+    const selected = checkboxes.filter(
+        checkbox => checkbox.checked
+    );
+
+    selectedStudentCount.textContent =
+        selected.length;
+
+    const visibleCheckboxes =
+        visibleRows
+            .map(row =>
+                row.querySelector(
+                    ".student-checkbox"
+                )
+            )
+            .filter(Boolean);
+
+    const visibleSelected =
+        visibleCheckboxes.filter(
+            checkbox => checkbox.checked
+        );
+
+    selectAll.checked =
+        visibleCheckboxes.length > 0 &&
+        visibleSelected.length ===
+            visibleCheckboxes.length;
+
+    selectAll.indeterminate =
+        visibleSelected.length > 0 &&
+        visibleSelected.length <
+            visibleCheckboxes.length;
+
+}
+
+
+search.addEventListener(
+    "input",
+    update
+);
+
+group.addEventListener(
+    "change",
+    update
+);
+
+team.addEventListener(
+    "change",
+    update
+);
+
+
+selectAll.addEventListener(
+    "change",
+    () => {
+
+        getVisibleRows().forEach(row => {
+
+            const checkbox =
+                row.querySelector(
+                    ".student-checkbox"
+                );
+
+            if (checkbox) {
+                checkbox.checked =
+                    selectAll.checked;
+            }
+
+        });
+
+        update();
+
+    }
+);
+
+
+selectVisible.addEventListener(
+    "click",
+    () => {
+
+        getVisibleRows().forEach(row => {
+
+            const checkbox =
+                row.querySelector(
+                    ".student-checkbox"
+                );
+
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+
+        });
+
+        update();
+
+    }
+);
+
+
+table.addEventListener(
+    "change",
+    event => {
+
+        if (
+            event.target.matches(
+                ".student-checkbox"
+            )
+        ) {
+            update();
+        }
+
+    }
+);
+
+
+update();
+
+}
+
+// ============================================================
+// GE UPPGIFT TILL FLERA ELEVER SAMTIDIGT PÅ STUDENTSIDAN
+// ============================================================
+function setupStudentAssignmentButton() {
+    const button = document.getElementById(
+        "createAssignmentFromSelected"
+    );
+
+    if (!button) {
+        return;
+    }
+
+    button.addEventListener("click", function () {
+        const checkboxes = document.querySelectorAll(
+            ".student-checkbox:checked"
+        );
+
+        if (checkboxes.length === 0) {
+            alert("Markera minst en elev.");
+            return;
+        }
+
+        const params = new URLSearchParams();
+
+        checkboxes.forEach(function (checkbox) {
+            params.append(
+                "student_ids",
+                checkbox.value
+            );
+        });
+
+        window.location.href =
+            `/assignments/new?${params.toString()}`;
+    });
+}
+
 // ============================================================
 // INITIERING
 // ============================================================
@@ -1005,6 +1274,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setupImageReferences();
     setupMediaEdit();
     setupMediaSelection();
+    setupAssignmentStudents();
+    setupStudentAssignmentButton();
 });
 
 document.body.addEventListener("htmx:afterSwap", (event) => {

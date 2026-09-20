@@ -27,9 +27,9 @@
                 <th></th>
                 <th>
                     <button
-                        class="btn btn-success btn-sm"
-                        name="type"
-                        value="assignment">
+                        type="button"
+                        id="createAssignmentFromSelected"
+                        class="btn btn-success btn-sm">
                         Uppgift
                     </button>
                     <button
@@ -67,9 +67,10 @@
                         <input
                             class="student-checkbox"
                             type="checkbox"
-                            name="students_ids"
-                            value="{{ student.id }}">
-                        </td>
+                            name="student_ids"
+                            value="{{ student.id }}"
+                            {% if student.id in selected_student_ids %}checked{% endif %}>
+                    </td>
                     <td>{{student.name}}</td>
                     <td>{{student.group.name}}</td>
                     <td>
@@ -94,7 +95,7 @@
                     </td>
                     <td>
                         <a
-                            href="{{ url_for('assignments.add_assignment_post', student_id=student.id) }}"
+                            href="{{ url_for('assignments.new', student_id=student.id) }}"
                             class="btn btn-sm btn-outline-primary">
                             Uppgift
                         </a>

@@ -3,7 +3,7 @@
 <div class="container-fluid px-4 py-3">
     <!-- SIDHUVUD -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0"> Bilder </h2>
+        <h2 class="mb-0"> Hantera bilder </h2>
         <form method="post" action="{{ url_for('media.upload') }}" enctype="multipart/form-data">
             <label for="mediaFile" class="btn btn-primary mb-0"> Ladda upp bild </label>
             <input type="file" id="mediaFile" name="image" accept="image/jpeg,image/png,image/webp" class="d-none" onchange="this.form.submit()">

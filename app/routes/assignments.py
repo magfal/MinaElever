@@ -7,17 +7,18 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from rapidfuzz import fuzz
-from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify, g, make_response, abort
+from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify, g, make_response, abort, current_app
 from sqlalchemy import select, delete, and_, or_
+from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from flask_sqlalchemy import SQLAlchemy
 from app.extensions import db
 from app.models import QuestionType, TagType, MediaType, TemplateType, PointType
 from app.models import QuestionTemplateLink
-from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
+from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media , Team
 from app.services.auth import generate_code
 from app.services.auth import create_remember_token 
-from flask import current_app
+from app.services.utils import utc_now, local_to_utc, utcify, SWEDEN_TZ
 
 assignments_bp = Blueprint(
     "assignments", 
@@ -25,50 +26,568 @@ assignments_bp = Blueprint(
     url_prefix="/assignments"
 )
 
-@assignments_bp.route("/add", methods=["POST"])
-def add_assignment_post():
-    subject_id = request.form.get("subject_id", type=int)
-    group_id = request.form.get("group_id", type=int)
-    start_time = request.form.get("start_time")
-    end_time = request.form.get("end_time")
+def assignment_status(assignment):
+    now = utc_now()
+    start_time = utcify(assignment.start_time)
+    end_time = utcify(assignment.end_time)
+    if start_time is None:
+        return "Förberedd"
+    if now < start_time:
+        return "Förberedd"
+    if end_time is not None and now > end_time:
+        return "Avslutad"
+    return "Pågående"
 
-    selected_question_id = request.form.get("selected_question_id")
-    new_question_text = request.form.get("new_question_text")
-    expected_answer = request.form.get("expected_answer"),
-    extra_data = request.form.get("extra_data"),
-    
-    # Question type (default TEXT)
-    qt_str = request.form.get("guestion_type") or "TEXT"
-    question_type = QuestionType[qt_str]
-
-    # 1. Skapa ny fråga
-    if selected_question_id == "" and new_question_text:
-        new_question = Question(
-            text = new_question_text,
-            question_type = question_type,
-            expected_answer = expected_answer,
-            extra_data = extra_data, 
-            created_at = datetime.now()
-        )
-        db.session.add(new_question)
-        db.session.commit()
-        question_id = new_question.id
-
-    # 2. Använd befintlig fråga
-    else:
-        question_id = int(selected_question_id)
-
-    # 3. Skapa assignment
-    assignment = Assignment(
-        question_id=question_id,
-        subject_id=subject_id,
-        group_id=group_id,
-        start_time=start_time,
-        end_time=end_time
+@assignments_bp.get("/manage")
+def manage():
+    search = request.args.get(
+        "search",
+        "",
+    ).strip()
+    status = request.args.get(
+        "status",
+        "",
+    ).strip()
+    template_id = request.args.get(
+        "template_id",
+        type=int,
     )
+    query = (
+        select(Assignment)
+        .options(
+            selectinload(Assignment.template),
+            selectinload(Assignment.students),
+        )
+        .order_by(
+            Assignment.start_time.desc()
+        )
+    )
+    if search:
+        query = query.join(
+            Assignment.template
+        ).where(
+            Template.title.ilike(
+                f"%{search}%"
+            )
+        )
+    if template_id:
+        query = query.where(
+            Assignment.template_id == template_id
+        )
+    assignments = db.session.scalars(
+        query
+    ).all()
+    # Filtrera status efter att objekten hämtats.
+    if status:
+        assignments = [
+            assignment
+            for assignment in assignments
+            if assignment_status(assignment)
+            == status
+        ]
+    templates = db.session.scalars(
+        select(Template)
+        .order_by(Template.title)
+    ).all()
+    if request.headers.get("HX-Request"):
+        return render_template(
+            "assignments/_assignments_table.html",
+            assignments=assignments,
+            assignment_status=assignment_status,
+            sweden_tz=SWEDEN_TZ,
+        )
+    return render_template(
+        "assignments/manage.html",
+        assignments=assignments,
+        templates=templates,
+        search=search,
+        status=status,
+        template_id=template_id,
+        assignment_status=assignment_status,
+        sweden_tz=SWEDEN_TZ,
+    )
+
+@assignments_bp.get("/new")
+def new():
+    # En elev från studentsidan:
+    single_student_id = request.args.get(
+        "student_id",
+        type=int,
+    )
+
+    # Flera elever från studentsidans tabell:
+    student_ids = request.args.getlist(
+        "student_ids",
+        type=int,
+    )
+
+    if single_student_id is not None:
+        student_ids.append(single_student_id)
+
+    templates = db.session.scalars(
+        select(Template).order_by(Template.title)
+    ).all()
+
+    students = db.session.scalars(
+        select(Student)
+        .where(Student.is_active.is_(True))
+        .order_by(Student.name)
+    ).all()
+
+    groups = db.session.scalars(
+        select(Group)
+        .where(Group.is_active.is_(True))
+        .order_by(Group.name)
+    ).all()
+
+    teams = db.session.scalars(
+        select(Team).order_by(Team.name)
+    ).all()
+
+    selected_student_ids = {
+        student.id
+        for student in students
+        if student.id in student_ids
+    }
+
+    selected_students = [
+        student
+        for student in students
+        if student.id in selected_student_ids
+    ]
+
+    selected_student = (
+        selected_students[0]
+        if len(selected_students) == 1
+        else None
+    )
+
+    return render_template(
+        "assignments/new.html",
+        assignment=None,
+        templates=templates,
+        students=students,
+        groups=groups,
+        teams=teams,
+        selected_student=selected_student,
+        selected_students=selected_students,
+        selected_student_ids=selected_student_ids,
+        sweden_tz=SWEDEN_TZ,
+    )
+
+@assignments_bp.get("/edit/<int:assignment_id>")
+def edit(assignment_id):
+
+    assignment = db.session.get(
+        Assignment,
+        assignment_id,
+    )
+
+    if assignment is None:
+        abort(404)
+
+    templates = db.session.scalars(
+        select(Template)
+        .order_by(Template.title)
+    ).all()
+
+    students = db.session.scalars(
+        select(Student)
+        .where(Student.is_active.is_(True))
+        .order_by(Student.name)
+    ).all()
+
+    groups = db.session.scalars(
+        select(Group)
+        .where(Group.is_active.is_(True))
+        .order_by(Group.name)
+    ).all()
+
+    teams = db.session.scalars(
+        select(Team)
+        .order_by(Team.name)
+    ).all()
+
+    return render_template(
+        "assignments/edit.html",
+        assignment=assignment,
+        templates=templates,
+        students=students,
+        groups=groups,
+        teams=teams,
+        sweden_tz=SWEDEN_TZ,
+        assignment_status=assignment_status,
+    )
+
+@assignments_bp.post("/new")
+def create():
+
+    template_id = request.form.get(
+        "template_id",
+        type=int,
+    )
+
+    start_time_text = request.form.get(
+        "start_time",
+        "",
+    ).strip()
+
+    end_time_text = request.form.get(
+        "end_time",
+        "",
+    ).strip()
+
+    student_ids = request.form.getlist(
+        "student_ids"
+    )
+
+    label = request.form.get("label", "").strip() or None
+
+    # ------------------------------------------------------------
+    # Kontrollera mall
+    # ------------------------------------------------------------
+
+    template = db.session.get(
+        Template,
+        template_id,
+    )
+
+    if template is None:
+        flash(
+            "Du måste välja en giltig mall.",
+            "warning",
+        )
+        return redirect(
+            url_for("assignments.new")
+        )
+
+    # ------------------------------------------------------------
+    # Läs starttid
+    # ------------------------------------------------------------
+
+    if start_time_text:
+
+        try:
+            start_time = local_to_utc(
+                datetime.fromisoformat(start_time_text)
+            )
+        except ValueError:
+            flash(
+                "Ogiltigt startdatum.",
+                "warning",
+            )
+            return redirect(
+                url_for("assignments.new")
+            )
+
+    else:
+        start_time = None
+
+    # ------------------------------------------------------------
+    # Läs sluttid
+    # ------------------------------------------------------------
+
+    if end_time_text:
+
+        try:
+            end_time = local_to_utc(
+                datetime.fromisoformat(
+                    end_time_text
+                )
+            )
+        except ValueError:
+            flash(
+                "Ogiltigt slutdatum.",
+                "warning",
+            )
+            return redirect(
+                url_for("assignments.new")
+            )
+
+    else:
+        end_time = None
+
+    # ------------------------------------------------------------
+    # Kontrollera tider
+    # ------------------------------------------------------------
+
+    if (
+        end_time is not None
+        and end_time <= start_time
+    ):
+        flash(
+            "Sluttiden måste vara senare än starttiden.",
+            "warning",
+        )
+        return redirect(
+            url_for("assignments.new")
+        )
+
+    # ------------------------------------------------------------
+    # Kontrollera elever
+    # ------------------------------------------------------------
+
+    students = []
+
+    for student_id in student_ids:
+
+        try:
+            student_id = int(student_id)
+        except ValueError:
+            continue
+
+        student = db.session.get(
+            Student,
+            student_id,
+        )
+
+        if (
+            student is not None
+            and student.is_active
+        ):
+            students.append(student)
+
+    if not students:
+        flash(
+            "Du måste välja minst en elev.",
+            "warning",
+        )
+        return redirect(
+            url_for("assignments.new")
+        )
+
+    # ------------------------------------------------------------
+    # Skapa assignment
+    # ------------------------------------------------------------
+
+    assignment = Assignment(
+        author_id=g.user.id,
+        template_id=template.id,
+        label=label,
+        start_time=start_time,
+        end_time=end_time,
+    )
+
+    assignment.students = students
 
     db.session.add(assignment)
     db.session.commit()
 
-    flash("Assignment skapades!", "success")
-    return redirect(url_for("view_assignments"))
+    flash(
+        "Uppgiften skapades.",
+        "success",
+    )
+
+    return redirect(url_for("assignments.manage"))
+
+@assignments_bp.post("/edit/<int:assignment_id>")
+def update(assignment_id):
+
+    assignment = db.session.get(
+        Assignment,
+        assignment_id,
+    )
+    label = request.form.get("label", "").strip() or None
+
+    if assignment is None:
+        abort(404)
+
+    start_time_text = request.form.get(
+        "start_time",
+        "",
+    ).strip()
+
+    end_time_text = request.form.get(
+        "end_time",
+        "",
+    ).strip()
+
+    student_ids = request.form.getlist(
+        "student_ids"
+    )
+
+    # ------------------------------------------------------------
+    # Läs starttid
+    # ------------------------------------------------------------
+
+    try:
+        start_time = local_to_utc(
+            datetime.fromisoformat(
+                start_time_text
+            )
+        )
+    except ValueError:
+        flash(
+            "Ogiltigt startdatum.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "assignments.edit",
+                assignment_id=assignment.id,
+            )
+        )
+
+    # ------------------------------------------------------------
+    # Läs sluttid
+    # ------------------------------------------------------------
+
+    if end_time_text:
+
+        try:
+            end_time = local_to_utc(
+                datetime.fromisoformat(
+                    end_time_text
+                )
+            )
+        except ValueError:
+            flash(
+                "Ogiltigt slutdatum.",
+                "warning",
+            )
+            return redirect(
+                url_for(
+                    "assignments.edit",
+                    assignment_id=assignment.id,
+                )
+            )
+
+    else:
+        end_time = None
+
+    # ------------------------------------------------------------
+    # Kontrollera tider
+    # ------------------------------------------------------------
+
+    if (
+        end_time is not None
+        and end_time <= start_time
+    ):
+        flash(
+            "Sluttiden måste vara senare än starttiden.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "assignments.edit",
+                assignment_id=assignment.id,
+            )
+        )
+
+    # ------------------------------------------------------------
+    # Hämta elever
+    # ------------------------------------------------------------
+
+    students = []
+
+    for student_id in student_ids:
+
+        try:
+            student_id = int(student_id)
+        except ValueError:
+            continue
+
+        student = db.session.get(
+            Student,
+            student_id,
+        )
+
+        if (
+            student is not None
+            and student.is_active
+        ):
+            students.append(student)
+
+    if not students:
+        flash(
+            "Du måste välja minst en elev.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "assignments.edit",
+                assignment_id=assignment.id,
+                label=label
+            )
+        )
+
+    # ------------------------------------------------------------
+    # Uppdatera
+    # ------------------------------------------------------------
+
+    assignment.start_time = start_time
+    assignment.end_time = end_time
+    assignment.students = students
+
+    db.session.commit()
+
+    flash(
+        "Uppgiften ändrades.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "assignments.edit",
+            assignment_id=assignment.id,
+            label=label,
+        )
+    )
+
+@assignments_bp.post("/start/<int:assignment_id>")
+def start(assignment_id):
+
+    assignment = db.session.get(
+        Assignment,
+        assignment_id,
+    )
+
+    if assignment is None:
+        abort(404)
+
+    duration = request.form.get(
+        "duration",
+        type=int,
+    )
+
+    allowed_durations = {
+        1,
+        3,
+        5,
+        10,
+        30,
+    }
+
+    if duration not in allowed_durations:
+        flash(
+            "Ogiltig tidslängd.",
+            "warning",
+        )
+        return redirect(
+            url_for(
+                "assignments.edit",
+                assignment_id=assignment.id,
+            )
+        )
+
+    start_time = utc_now()
+    end_time = start_time + timedelta(
+        minutes=duration
+    )
+
+    assignment.start_time = start_time
+    assignment.end_time = end_time
+
+    db.session.commit()
+
+    flash(
+        f"Uppgiften startades och är öppen i {duration} minuter.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "assignments.edit",
+            assignment_id=assignment.id,
+        )
+    )

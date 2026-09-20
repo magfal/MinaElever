@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}
+Ny uppgift
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-3">
+    <form
+        method="POST"
+        action="{{ url_for('assignments.create') }}">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            {% if selected_student %}
+                <h2 class="h3 mb-4">
+                    Ny uppgift för {{ selected_student.name }}
+                </h2>
+            {% elif selected_students %}
+                <h2 class="h3 mb-4">
+                    Ny uppgift - {{ selected_students|length }} elever valda
+                </h2>
+            {% else %}
+                <h2 class="h3 mb-4">
+                    Lägg till uppgift
+                </h2>
+            {% endif %}
+                <button
+                    type="submit"
+                    class="btn btn-primary">
+                    Skapa uppgift
+                </button>
+        </div>
+
+
+
+
+
+        <!-- =====================================================
+             MALL OCH TIDER
+             ===================================================== -->
+
+        <div class="card mb-4">
+
+            <div class="card-header">
+                <strong>Uppgift</strong>
+            </div>
+
+            <div class="card-body">
+
+                <div class="row g-3">
+
+                    <!-- Mall -->
+
+                    <div class="col-12">
+
+                        <label
+                            for="assignmentTemplate"
+                            class="form-label">
+                            Mall
+                        </label>
+
+                        <select
+                            id="assignmentTemplate"
+                            name="template_id"
+                            class="form-select"
+                            required>
+
+                            <option value="">
+                                Välj mall...
+                            </option>
+
+                            {% for template in templates %}
+
+                                <option value="{{ template.id }}">
+                                    {{ template.title }}
+                                    – {{ template.template_type.value }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Starttid -->
+
+                    <div class="col-12 col-md-6">
+
+                        <label
+                            for="assignmentStartTime"
+                            class="form-label">
+                            Starttid
+                        </label>
+
+                        <input
+                            type="datetime-local"
+                            id="assignmentStartTime"
+                            name="start_time"
+                            class="form-control">
+
+                        <div class="form-text">
+                            Eleverna får tillgång till uppgiften från denna tid.
+                        </div>
+
+                    </div>
+
+
+                    <!-- Sluttid -->
+
+                    <div class="col-12 col-md-6">
+
+                        <label
+                            for="assignmentEndTime"
+                            class="form-label">
+                            Sluttid
+                        </label>
+
+                        <input
+                            type="datetime-local"
+                            id="assignmentEndTime"
+                            name="end_time"
+                            class="form-control">
+                        <div class="form-text">
+                            Kan lämnas tom för en uppgift utan sluttid.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- =====================================================
+             ELEVER
+             ===================================================== -->
+
+        <div class="card mb-4">
+
+            <div class="card-header">
+                <strong>Elever</strong>
+            </div>
+
+            <div class="card-body">
+
+<div class="mb-3">
+    <label for="label" class="form-label">
+        Beskrivning
+                    </label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="label"
+                        name="label"
+                        maxlength="20"
+                        value="{{ assignment.label if assignment else '' }}"
+                    >
+                    <div class="form-text">
+                        Kort beskrivning av de som får uppgiften, t.ex. 9C.
+                    </div>
+                </div>
+                <!-- Filter -->
+
+                <div class="row g-3 mb-3">
+
+                    <div class="col-12 col-md-4">
+
+                        <label
+                            for="assignmentStudentSearch"
+                            class="form-label">
+                            Sök elev
+                        </label>
+
+                        <input
+                            type="search"
+                            id="assignmentStudentSearch"
+                            class="form-control"
+                            placeholder="Sök namn...">
+
+                    </div>
+
+
+                    <div class="col-12 col-md-3">
+
+                        <label
+                            for="assignmentStudentGroup"
+                            class="form-label">
+                            Grupp
+                        </label>
+
+                        <select
+                            id="assignmentStudentGroup"
+                            class="form-select">
+
+                            <option value="">
+                                Alla grupper
+                            </option>
+
+                            {% for group in groups %}
+
+                                <option value="{{ group.id }}">
+                                    {{ group.name }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="col-12 col-md-3">
+
+                        <label
+                            for="assignmentStudentTeam"
+                            class="form-label">
+                            Lag
+                        </label>
+
+                        <select
+                            id="assignmentStudentTeam"
+                            class="form-select">
+
+                            <option value="">
+                                Alla lag
+                            </option>
+
+                            {% for team in teams %}
+
+                                <option value="{{ team.id }}">
+                                    {{ team.name }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="col-12 col-md-2 d-flex align-items-end">
+
+                        <button
+                            type="button"
+                            id="assignmentSelectVisible"
+                            class="btn btn-outline-primary w-100">
+                            Välj synliga
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Information -->
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+
+                    <div class="small text-muted">
+
+                        Visar
+                        <span id="assignmentStudentCount">0</span>
+                        elever
+
+                    </div>
+
+                    <div class="small text-muted">
+
+                        Valda:
+                        <span id="assignmentSelectedStudentCount">0</span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Student table -->
+
+                <div
+                    id="assignmentStudentsTable"
+                    class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead>
+
+                            <tr>
+
+                                <th style="width: 40px;">
+
+                                    <input
+                                        id="assignmentSelectAll"
+                                        type="checkbox"
+                                        class="form-check-input">
+
+                                </th>
+
+                                <th>
+                                    Elev
+                                </th>
+
+                                <th>
+                                    Grupp
+                                </th>
+
+                                <th>
+                                    Lag
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for student in students %}
+
+                                <tr
+                                    data-assignment-student
+                                    data-name="{{ student.name|lower }}"
+                                    data-group="{{ student.group_id or '' }}"
+                                    data-teams="{% for team in student.teams %}{{ team.id }}{% if not loop.last %},{% endif %}{% endfor %}">
+
+                                    <td>
+
+                                        <input
+                                            class="form-check-input student-checkbox"
+                                            type="checkbox"
+                                            name="student_ids"
+                                            value="{{ student.id }}"
+                                            {% if student.id in selected_student_ids %}checked{% endif %}>
+
+                                    </td>
+
+                                    <td>
+                                        {{ student.name }}
+                                    </td>
+
+                                    <td>
+
+                                        {% if student.group %}
+                                            {{ student.group.name }}
+                                        {% else %}
+                                            <span class="text-muted">
+                                                –
+                                            </span>
+                                        {% endif %}
+
+                                    </td>
+
+                                    <td>
+
+                                        {% if student.teams %}
+
+                                            {% for team in student.teams %}
+
+                                                {% if not loop.first %}
+                                                    ,
+                                                {% endif %}
+
+                                                {{ team.name }}
+
+                                            {% endfor %}
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                –
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% else %}
+
+                                <tr>
+
+                                    <td
+                                        colspan="4"
+                                        class="text-center text-muted py-4">
+
+                                        Inga aktiva elever.
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

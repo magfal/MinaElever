@@ -23,6 +23,7 @@ from flask import Flask, render_template
 from sqlalchemy.exc import SQLAlchemyError
 from .services.auth import register_auth
 from .extensions import db
+from .services.utils import SWEDEN_TZ, utcify
 
 load_dotenv()
 
@@ -125,7 +126,14 @@ def register_error_handlers(app):
             "errors/500.html",
             error=error
         ), 500
-    
+
+def local_datetime(dt):
+    if dt is None:
+        return ""
+    return utcify(dt).astimezone(SWEDEN_TZ).strftime(
+        "%Y-%m-%d %H:%M"
+    )
+
 def create_app():
     """
     Skapar och returnerar Flask-applikationen.
@@ -143,6 +151,7 @@ def create_app():
     configure_app(app)
     register_extensions(app)
     register_auth(app)
+    app.jinja_env.filters["local_datetime"] = local_datetime
     register_blueprints(app)
     register_commands(app)
     register_error_handlers(app) 

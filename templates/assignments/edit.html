@@ -1,0 +1,548 @@
+{% extends "base.html" %}
+
+{% block title %}Ändra uppgift{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid px-3 py-3">
+
+
+    <!-- =====================================================
+         RUBRIK
+         ===================================================== -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+
+            <h2 class="mb-1">
+                {{ assignment.template.title }}
+            </h2>
+
+            {% set status = assignment_status(assignment) %}
+
+            {% if status == "Förberedd" %}
+
+                <span class="badge text-bg-info">
+                    Förberedd
+                </span>
+
+            {% elif status == "Pågående" %}
+
+                <span class="badge text-bg-success">
+                    Pågående
+                </span>
+
+            {% else %}
+
+                <span class="badge text-bg-secondary">
+                    Avslutad
+                </span>
+
+            {% endif %}
+
+        </div>
+
+
+        <a
+            href="{{ url_for('assignments.manage') }}"
+            class="btn btn-outline-secondary">
+            Tillbaka
+        </a>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         STARTA UPPGIFT
+         ===================================================== -->
+
+    {% if status == "Förberedd" %}
+
+        <div class="card mb-4">
+
+            <div class="card-header">
+
+                <strong>
+                    Starta uppgiften
+                </strong>
+
+            </div>
+
+
+            <div class="card-body">
+
+                <div class="row align-items-end g-3">
+
+                    <div class="col-12 col-md-5">
+
+                        <div class="text-muted small mb-1">
+                            Start
+                        </div>
+
+                        <div>
+                            {% if assignment.start_time %}
+                                {{ assignment.start_time.astimezone(sweden_tz).strftime("%Y-%m-%d %H:%M") }}
+                            {% else %}
+                                <span class="text-muted">Ej startad</span>
+                            {% endif %}
+                        </div>
+
+                    </div>
+
+
+                    <div class="col-12 col-md-4">
+
+                        <label
+                            for="startDuration"
+                            class="form-label">
+                            Uppgiften ska vara öppen i
+                        </label>
+
+                        <form
+                            method="POST"
+                            action="{{ url_for(
+                                'assignments.start',
+                                assignment_id=assignment.id
+                            ) }}">
+
+                            <select
+                                id="startDuration"
+                                name="duration"
+                                class="form-select">
+
+                                <option value="1">
+                                    1 minut
+                                </option>
+
+                                <option value="3">
+                                    3 minuter
+                                </option>
+
+                                <option value="5" selected>
+                                    5 minuter
+                                </option>
+
+                                <option value="10">
+                                    10 minuter
+                                </option>
+
+                                <option value="30">
+                                    30 minuter
+                                </option>
+
+                            </select>
+
+                    </div>
+
+
+                    <div class="col-12 col-md-3">
+
+                            <button
+                                type="submit"
+                                class="btn btn-primary w-100">
+                                Starta nu
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+                <div class="form-text mt-3">
+                    När du startar uppgiften sätts starttiden till nu
+                    och sluttiden räknas från starttiden.
+                </div>
+
+            </div>
+
+        </div>
+
+    {% endif %}
+
+
+
+    <!-- =====================================================
+         REDIGERA ASSIGNMENT
+         ===================================================== -->
+
+    <form
+        method="POST"
+        action="{{ url_for(
+            'assignments.update',
+            assignment_id=assignment.id
+        ) }}">
+
+
+        <!-- =================================================
+             UPPGIFT
+             ================================================= -->
+
+        <div class="card mb-4">
+
+            <div class="card-header">
+                <strong>Uppgift</strong>
+            </div>
+
+
+            <div class="card-body">
+
+                <div class="row g-3">
+
+
+                    <!-- Mall -->
+
+                    <div class="col-12">
+
+                        <label
+                            class="form-label">
+                            Mall
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            value="{{ assignment.template.title }}"
+                            readonly>
+
+                        <div class="form-text">
+                            Mallen ändras inte för denna assignment.
+                        </div>
+
+                    </div>
+
+
+                    <!-- Starttid -->
+
+                    <div class="col-12 col-md-6">
+
+                        <label
+                            for="assignmentStartTime"
+                            class="form-label">
+                            Starttid
+                        </label>
+
+                        <input
+                            type="datetime-local"
+                            id="assignmentStartTime"
+                            name="start_time"
+                            class="form-control"
+                            value="{% if assignment.start_time %}{{ assignment.start_time.astimezone(sweden_tz).strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                    </div>
+                    <!-- Sluttid -->
+                    <div class="col-12 col-md-6">
+                        <label
+                            for="assignmentEndTime"
+                            class="form-label">
+                            Sluttid
+                        </label>
+                        <input
+                            type="datetime-local"
+                            id="assignmentEndTime"
+                            name="end_time"
+                            class="form-control"
+                            {% if assignment.end_time %}
+                                value="{{ assignment.end_time.astimezone(sweden_tz).strftime('%Y-%m-%dT%H:%M') }}"
+                            {% endif %}>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =====================================================
+             ELEVER
+             ===================================================== -->
+
+        <div class="card mb-4">
+
+            <div class="card-header">
+                <strong>Elever</strong>
+            </div>
+
+
+            <div class="card-body">
+
+
+                <!-- Filter -->
+
+                <div class="row g-3 mb-3">
+
+                    <div class="col-12 col-md-4">
+
+                        <label
+                            for="assignmentStudentSearch"
+                            class="form-label">
+                            Sök elev
+                        </label>
+
+                        <input
+                            type="search"
+                            id="assignmentStudentSearch"
+                            class="form-control"
+                            placeholder="Sök namn...">
+
+                    </div>
+
+
+                    <div class="col-12 col-md-3">
+
+                        <label
+                            for="assignmentStudentGroup"
+                            class="form-label">
+                            Grupp
+                        </label>
+
+                        <select
+                            id="assignmentStudentGroup"
+                            class="form-select">
+
+                            <option value="">
+                                Alla grupper
+                            </option>
+
+                            {% for group in groups %}
+
+                                <option value="{{ group.id }}">
+                                    {{ group.name }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="col-12 col-md-3">
+
+                        <label
+                            for="assignmentStudentTeam"
+                            class="form-label">
+                            Lag
+                        </label>
+
+                        <select
+                            id="assignmentStudentTeam"
+                            class="form-select">
+
+                            <option value="">
+                                Alla lag
+                            </option>
+
+                            {% for team in teams %}
+
+                                <option value="{{ team.id }}">
+                                    {{ team.name }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="col-12 col-md-2 d-flex align-items-end">
+
+                        <button
+                            type="button"
+                            id="assignmentSelectVisible"
+                            class="btn btn-outline-primary w-100">
+                            Välj synliga
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Counts -->
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+
+                    <div class="small text-muted">
+
+                        Visar
+                        <span id="assignmentStudentCount">0</span>
+                        elever
+
+                    </div>
+
+                    <div class="small text-muted">
+
+                        Valda:
+                        <span id="assignmentSelectedStudentCount">
+                            0
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Student table -->
+
+                <div
+                    id="assignmentStudentsTable"
+                    class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead>
+
+                            <tr>
+
+                                <th style="width: 40px;">
+
+                                    <input
+                                        id="assignmentSelectAll"
+                                        type="checkbox"
+                                        class="form-check-input">
+
+                                </th>
+
+                                <th>
+                                    Elev
+                                </th>
+
+                                <th>
+                                    Grupp
+                                </th>
+
+                                <th>
+                                    Lag
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for student in students %}
+
+                                <tr
+                                    data-assignment-student
+                                    data-name="{{ student.name|lower }}"
+                                    data-group="{{ student.group_id or '' }}"
+                                    data-teams="{% for team in student.teams %}{{ team.id }}{% if not loop.last %},{% endif %}{% endfor %}">
+
+                                    <td>
+
+                                        <input
+                                            class="form-check-input student-checkbox"
+                                            type="checkbox"
+                                            name="student_ids"
+                                            value="{{ student.id }}"
+                                            {% if student in assignment.students %}
+                                                checked
+                                            {% endif %}>
+
+                                    </td>
+
+
+                                    <td>
+                                        {{ student.name }}
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if student.group %}
+                                            {{ student.group.name }}
+                                        {% else %}
+                                            <span class="text-muted">
+                                                –
+                                            </span>
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if student.teams %}
+
+                                            {% for team in student.teams %}
+
+                                                {% if not loop.first %}
+                                                    ,
+                                                {% endif %}
+
+                                                {{ team.name }}
+
+                                            {% endfor %}
+
+                                        {% else %}
+
+                                            <span class="text-muted">
+                                                –
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% else %}
+
+                                <tr>
+
+                                    <td
+                                        colspan="4"
+                                        class="text-center text-muted py-4">
+
+                                        Inga aktiva elever.
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =====================================================
+             KNAPPAR
+             ===================================================== -->
+
+        <div class="d-flex justify-content-end gap-2">
+
+            <a
+                href="{{ url_for('assignments.manage') }}"
+                class="btn btn-outline-secondary">
+                Avbryt
+            </a>
+
+            <button
+                type="submit"
+                class="btn btn-primary">
+                Spara ändringar
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

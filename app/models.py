@@ -156,8 +156,9 @@ class Assignment(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     template_id: Mapped[int] = mapped_column(ForeignKey("templates.id"), index=True)
-    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
-    end_time: Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    label: Mapped[str | None] = mapped_column(String(20), nullable=True,)
+    start_time: Mapped[datetime|None] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_time: Mapped[datetime|None] = mapped_column(DateTime(timezone=True), nullable = True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     # Relationer
     author: Mapped[User] = relationship(back_populates="assignments_created", foreign_keys=[author_id])

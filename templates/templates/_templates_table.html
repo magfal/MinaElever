@@ -1,0 +1,103 @@
+<div class="sticky-table-container">
+    <table class="table table-hover mb-0 sticky-table">
+        <thead>
+            <tr>
+                <th class="sortable">
+                    Mall
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Typ
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable text-center">
+                    Frågor
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable text-center">
+                    Uppgifter
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th class="sortable">
+                    Skapad
+                    <i class="bi bi-chevron-expand ms-1"></i>
+                </th>
+                <th>
+                    Status
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for template in templates %}
+            {% set locked = template_is_locked(template) %}
+
+            <tr>
+                <td>
+                    <div class="fw-semibold">
+                        {{ template.title }}
+                    </div>
+
+                    {% if template.description %}
+                        <div class="small text-muted">
+                            {{ template.description }}
+                        </div>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {{ template.template_type.value }}
+                </td>
+
+                <td class="text-center">
+                    {{ template.question_links|length }}
+                </td>
+
+                <td class="text-center">
+                    {{ template.assignments|length }}
+                </td>
+
+                <td>
+                    {{ template.created_at.strftime("%Y-%m-%d") }}
+                </td>
+
+                <td>
+                    {% if locked %}
+                        <span class="badge text-bg-secondary">
+                            Låst
+                        </span>
+                    {% else %}
+                        <span class="badge text-bg-success">
+                            Redigerbar
+                        </span>
+                    {% endif %}
+                </td>
+
+                <td class="text-end">
+                    <a
+                        href="{{ url_for(
+                            'templates.edit',
+                            template_id=template.id
+                        ) }}"
+                        class="btn btn-sm btn-outline-primary">
+                        {% if locked %}
+                            Visa
+                        {% else %}
+                            Ändra
+                        {% endif %}
+                    </a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td
+                    colspan="7"
+                    class="text-center text-muted py-4">
+                    Inga mallar.
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

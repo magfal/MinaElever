@@ -19,14 +19,11 @@
                     <small class="d-block small">leder framåt</small>
                 </a>
                 <div class="navbar-nav gap-3">
-                    <a class="nav-link" href="{{ url_for('students.manage') }}">
-                        Elever
-                    </a>
                     <a class="nav-link" href="{{ url_for('groups.manage') }}">
                         Grupper
                     </a>
-                    <a class="nav-link" href="{{ url_for('questions.manage') }}">
-                        Frågor
+                    <a class="nav-link" href="{{ url_for('students.manage') }}">
+                        Elever
                     </a>
                     <a class="nav-link" href="{{ url_for('media.manage') }}">
                         Bilder
@@ -34,11 +31,14 @@
                     <a class="nav-link" href="{{ url_for('tags.manage') }}">
                         Taggar
                     </a>
-                    <a class="nav-link" href="{{ url_for('templates.create_template') }}">
+                    <a class="nav-link" href="{{ url_for('questions.manage') }}">
+                        Frågor
+                    </a>
+                    <a class="nav-link" href="{{ url_for('templates.manage') }}">
                         Mallar
                     </a>
-                    <a class="nav-link" href="{{ url_for('statistics.show_statistics') }}">
-                        Spår
+                    <a class="nav-link" href="{{ url_for('assignments.manage') }}">
+                        Uppgifter
                     </a>
                     <a class="nav-link" href="{{ url_for('gamification.manage_rules') }}">
                         Spelregler
