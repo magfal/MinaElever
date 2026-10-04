@@ -1,8 +1,7 @@
 // ============================================================
 // TOM SELECT
 // ============================================================
-// Initierar Tom Select för fält där nya värden får skapas,
-// samt filterfält där nya värden inte får skapas.
+
 function initTomSelects(root = document) {
     root.querySelectorAll(".tomselect-create").forEach(el => {
         if (el.tomselect) return;
@@ -29,12 +28,80 @@ function initTomSelects(root = document) {
     });
     root.querySelectorAll(".tomselect-filter").forEach(el => {
         if (el.tomselect) return;
-        new TomSelect(el, {
+        const tom = new TomSelect(el, {
             create: false,
             allowEmptyOption: true
         });
+        if (el.id !== "mediaTags") return;
+        tom.control_input.addEventListener("input", () => {
+            updateAddMediaTagButton();
+        });
+        tom.on("dropdown_open", () => {
+            updateAddMediaTagButton();
+        });
+        const button = document.querySelector("#addMediaTagBtn");
+        if (!button) return;
+        let mediaTagName = "";
+        button.addEventListener("mousedown", () => {
+            mediaTagName = tom.control_input.value.trim();
+        });
+        button.onclick = () => {
+            if (!mediaTagName) return;
+            const url = new URL(
+                button.dataset.url,
+                window.location.origin
+            );
+            url.searchParams.set("name", mediaTagName);
+            htmx.ajax("GET", url.toString(), {
+                target: "#mediaTagModalContent",
+                swap: "innerHTML"
+            });
+        };
     });
 }
+
+function updateAddMediaTagButton() {
+    const select = document.querySelector("#mediaTags");
+    const button = document.querySelector("#addMediaTagBtn");
+    if (!select?.tomselect || !button) return;
+    const tom = select.tomselect;
+    const value = tom.control_input.value.trim();
+    if (!value) {
+        button.disabled = true;
+        return;
+    }
+    const exists = Object.values(tom.options).some(option =>
+        option.text.trim().toLowerCase() === value.toLowerCase()
+    );
+    button.disabled = exists;
+}
+
+// Ny media-tagg har skapats
+document.body.addEventListener("media-tag-created", event => {
+    const data = event.detail;
+    const select = document.querySelector("#mediaTags");
+    if (!select?.tomselect) return;
+    const tom = select.tomselect;
+    tom.addOption({
+        value: String(data.id),
+        text: data.name
+    });
+    tom.addItem(String(data.id));
+    tom.refreshOptions(false);
+    const modal = document.getElementById("mediaTagModal");
+    if (modal) {
+        bootstrap.Modal.getOrCreateInstance(modal).hide();
+    }
+});
+
+// Visa minimodalen när formuläret har laddats
+document.body.addEventListener("htmx:afterSwap", event => {
+    if (event.detail.target.id !== "mediaTagModalContent") return;
+    const modal = document.getElementById("mediaTagModal");
+    if (modal) {
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+    }
+});
 
 // ============================================================
 // CHECKBOXAR
@@ -72,6 +139,7 @@ function setupSelectAll(selectAllId, checkboxName, tableId) {
     window.updateSelectAll = updateSelectAll;
     updateSelectAll();
 }
+
 
 // ============================================================
 // FRÅGOR

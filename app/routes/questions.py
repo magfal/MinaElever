@@ -1,19 +1,11 @@
-import os
-import uuid
 import re
-from pathlib import Path
-from PIL import Image, UnidentifiedImageError
-from werkzeug.utils import secure_filename
+from urllib.parse import urlparse
 from datetime import date, timedelta
-from thefuzz import fuzz, process
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g, make_response, abort, current_app, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, g, abort
 from sqlalchemy import select, case
-from sqlalchemy.dialects.mysql import match
-from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import Media, Tag, TagType, QuestionType, Question, Choice, MediaType 
-from app.services.htmx import toast
-from app.services.auth import logout_everywhere, generate_code
+from app.services.auth import teacher_required
 from app.services.utils import utc_now, utcify
 from app.services.tags import get_selected_tags
 
@@ -56,6 +48,19 @@ def question_is_locked(question):
         for link in question.template_links
         for assignment in link.template.assignments
     )
+
+def get_safe_return_url(value, default):
+    if not value:
+        return url_for(default)
+    parsed = urlparse(value)
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or not value.startswith("/")
+        or value.startswith("//")
+    ):
+        return url_for(default)
+    return value
 
 def populate_question_answer(question):
     question_type = question.question_type
@@ -213,6 +218,7 @@ def populate_question_answer(question):
 # HANTERA FRÅGOR
 # -------------------------------------------------
 @questions_bp.get("/manage")
+@teacher_required
 def manage():
     search = request.args.get("search", "").strip()
     tag_id = request.args.get("tag_id", type=int)
@@ -322,9 +328,13 @@ def manage():
 # NY FRÅGA
 # -------------------------------------------------
 @questions_bp.get("/new")
+@teacher_required
 def new_form():
+    return_url = get_safe_return_url(
+        request.args.get("return_url"),
+        "questions.manage",
+    )
     question_types, tags = get_question_form_data()
-
     media = (
         db.session.query(Media)
         .filter(Media.media_type == MediaType.IMAGE)
@@ -352,24 +362,26 @@ def new_form():
         media=media,
         media_tags=media_tags,
         media_map=media_map,
+        return_url=return_url,
     )
 
 @questions_bp.post("/new")
+@teacher_required
 def create_question():
+    return_url = get_safe_return_url(
+        request.form.get("return_url"),
+        "questions.manage",
+    )
     text = request.form.get("text", "").strip() 
     question_type_name = request.form.get("question_type", QuestionType.TEXT.name).strip()    
     if not text:
         flash("Frågan måste innehålla text.", "warning")
-        return redirect(
-            url_for("questions.new_form")
-        )
+        return redirect(url_for("questions.new_form", return_url=return_url)) 
     try:
         question_type = QuestionType[question_type_name]
     except KeyError:
         flash("Ogiltig svarstyp.", "danger")
-        return redirect(
-            url_for("questions.new_form")
-        )
+        return redirect(url_for("questions.new_form", return_url=return_url)) 
     
     # -------------------------------------------------
     # SKAPA FRÅGA
@@ -389,26 +401,25 @@ def create_question():
         populate_question_answer(question)
     except ValueError as error:
         flash(str(error), "danger")
-        return redirect(
-            url_for("questions.new_form")
-        )    
+        return redirect(url_for("questions.new_form", return_url=return_url)) 
     db.session.add(question)
     db.session.commit()
     flash(
         "Frågan har sparats.",
         "success"
     )
-    return redirect(
-        url_for(
-            "questions.manage"
-        )
-    )
+    return redirect(return_url)
 
 # -------------------------------------------------
 # KOPIERA FRÅGA
 # -------------------------------------------------
 @questions_bp.post("/copy/<int:question_id>")
+@teacher_required
 def copy_question(question_id):
+    return_url = get_safe_return_url(
+        request.form.get("return_url"),
+        "questions.manage",
+    )
     source = db.session.get(
         Question,
         question_id,
@@ -436,6 +447,7 @@ def copy_question(question_id):
             url_for(
                 "questions.edit_question",
                 question_id=source.id,
+                return_url=return_url,
             )
         )
 
@@ -452,6 +464,7 @@ def copy_question(question_id):
             url_for(
                 "questions.edit_question",
                 question_id=source.id,
+                return_url=return_url,
             )
         )
 
@@ -477,6 +490,7 @@ def copy_question(question_id):
             url_for(
                 "questions.edit_question",
                 question_id=source.id,
+                return_url=return_url,
             )
         )
 
@@ -489,14 +503,18 @@ def copy_question(question_id):
         "Frågan kopierades.",
         "success",
     )
-
-    return redirect(url_for("questions.manage"))
+    return redirect(return_url)
 
 # -------------------------------------------------
 # REDIGERA FRÅGA
 # -------------------------------------------------
 @questions_bp.get("/edit/<int:question_id>")
+@teacher_required
 def edit_question(question_id):
+    return_url = get_safe_return_url(
+        request.args.get("return_url"),
+        "questions.manage",
+    )
     question = db.session.get(Question, question_id)
     if question is None:
         abort(404)
@@ -535,10 +553,16 @@ def edit_question(question_id):
         media=media,
         media_tags=media_tags,
         media_map=media_map,
+        return_url=return_url,
     )
 
 @questions_bp.post("/edit/<int:question_id>")
+@teacher_required
 def update_question(question_id):
+    return_url = get_safe_return_url(
+        request.form.get("return_url"),
+        "questions.manage",
+    )
     question = db.session.get(
         Question,
         question_id,
@@ -558,6 +582,7 @@ def update_question(question_id):
             url_for(
                 "questions.edit_question",
                 question_id=question.id,
+                return_url=return_url,
             )
         )
     try:
@@ -570,6 +595,7 @@ def update_question(question_id):
             url_for(
                 "questions.edit_question",
                 question_id=question.id,
+                return_url=return_url,
             )
         )
     question.text = text
@@ -583,44 +609,37 @@ def update_question(question_id):
         return redirect(
             url_for(
                 "questions.edit_question",
-                question_id=question.id
+                question_id=question.id,
+                return_url=return_url,
             )
         )
     db.session.commit()
     flash("Frågan uppdaterades.", "success")
-    return redirect(
-        url_for("questions.manage")
-    )
-
-
+    return redirect(return_url)
 
 # -------------------------------------------------
 # REDIGERA FRÅGA
 # -------------------------------------------------
 @questions_bp.post("/delete_question/<int:question_id>")
+@teacher_required
 def delete_question(question_id):
     question = db.session.get(Question, question_id)
-
     if not question:
         flash("Frågan hittades inte.", "danger")
         return redirect(url_for("questions.manage"))
-
     if question.template_links:
         flash(
             "Frågan används i en mall och kan därför inte tas bort.",
             "danger"
         )
         return redirect(url_for("questions.manage"))
-
     if question.responses:
         flash(
             "Frågan har elevsvar och kan därför inte tas bort permanent.",
             "danger"
         )
         return redirect(url_for("questions.manage"))
-
     db.session.delete(question)
     db.session.commit()
-
     flash("Frågan togs bort permanent.", "success")
     return redirect(url_for("questions.manage"))

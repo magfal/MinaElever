@@ -55,10 +55,11 @@ def login_post():
     session.clear()
     session["user_id"] = user.id
     session.permanent = True
+    remember, token = create_remember_token(user)
+    session["remember_token_id"] = remember.id
     response = make_response(
         redirect_after_login(user)
     )
-    token = create_remember_token(user)
     response.set_cookie(
         "remember_token",
         token,

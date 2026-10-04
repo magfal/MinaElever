@@ -1,4 +1,5 @@
 from flask import Blueprint
+from app.services.auth import teacher_required
 
 gamification_bp = Blueprint(
     "gamification",
@@ -7,5 +8,6 @@ gamification_bp = Blueprint(
 )
 
 @gamification_bp.route("/manage")
+@teacher_required
 def manage_rules():
     return "Ändra regler"

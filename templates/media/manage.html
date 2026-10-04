@@ -129,23 +129,37 @@
                             required>
                     </div>
                     <div class="mb-3">
-                        <label
-                            for="mediaTags"
-                            class="form-label">
+                        <label for="mediaTags" class="form-label">
                             Taggar
                         </label>
-                        <select
-                            id="mediaTags"
-                            name="tag_ids"
-                            class="form-select tomselect-create"
-                            multiple>
-                            {% for tag in tags %}
-                                <option
-                                    value="{{ tag.id }}">
-                                    {{ tag.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
+                        <div class="input-group">
+                            <select
+                                id="mediaTags"
+                                name="tag_ids"
+                                class="form-select tomselect-filter"
+                                multiple>
+
+                                {% for tag_type in tag_types %}
+                                    <optgroup label="{{ tag_type.value }}">
+                                        {% for tag in tags if tag.tag_type == tag_type %}
+                                            <option value="{{ tag.id }}">
+                                                {{ tag.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </optgroup>
+                                {% endfor %}
+
+                            </select>
+
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary"
+                                id="addMediaTagBtn"
+                                data-url="{{ url_for('tags.create_media_tag_modal') }}"
+                                disabled>
+                                Lägg till
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -156,6 +170,19 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+<div
+    class="modal fade"
+    id="mediaTagModal"
+    tabindex="-1"
+    aria-hidden="true">
+
+    <div class="modal-dialog modal-sm">
+        <div
+            class="modal-content"
+            id="mediaTagModalContent">
         </div>
     </div>
 </div>

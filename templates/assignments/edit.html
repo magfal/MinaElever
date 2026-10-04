@@ -213,6 +213,35 @@
 
                     </div>
 
+                    <!-- Typ av uppgift -->
+
+                    <div class="col-12 col-md-6">
+
+                        <label
+                            for="assignmentType"
+                            class="form-label">
+                            Typ av uppgift
+                        </label>
+                        <select
+                            id="assignmentType"
+                            name="assignment_type"
+                            class="form-select"
+                            required>
+
+                            {% for assignment_type in assignment_types %}
+                                <option
+                                    value="{{ assignment_type.name }}"
+                                    {% if assignment.assignment_type == assignment_type %}
+                                            selected
+                                        {% endif %}
+                                    >
+                                        {{ assignment_type.value }}
+                                    </option>
+                                {% endfor %}
+
+                            </select>
+
+                    </div>
 
                     <!-- Starttid -->
 

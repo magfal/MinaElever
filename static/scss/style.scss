@@ -18,31 +18,51 @@
 // 1. GOOGLE FONTS
 // ============================================================
 
-// Importerar typsnittet Inter från Google Fonts.
-// Används som huvudsakligt typsnitt i applikationen.
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap');
+// Använd typsnittet Inter från Google Fonts.
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/inter/inter-latin-300-normal.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+}
 
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/inter/inter-latin-400-normal.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/inter/inter-latin-700-normal.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+}
 
 // ============================================================
 // 2. BOOTSTRAP – EGNA VARIABLER
 // ============================================================
-
 // Dessa variabler sätts INNAN Bootstrap importeras.
-//
 // Bootstrap använder sedan dessa värden när sin egen CSS
 // genereras. Det gör att vi kan anpassa Bootstrap utan att
 // behöva skriva om en massa Bootstrap-klasser själva.
 
-$primary: #187513;      // Huvudfärg – används bl.a. av .btn-primary
-$secondary: #2c3e50;    // Sekundär färg
-$danger: #dc3545;       // Fel/varning
-$success: #0d9462;      // Lyckade operationer
-$dark: #2c3e50;         // Bootstrap .bg-dark, text-dark etc.
 $body-bg: #fcf8f9;      // Bakgrundsfärg för hela sidan
 
+$primary:   #187513;   // Spåren-grön #187513;  
+$secondary: #6c757d;   // Neutral grå
+$success:   #2f80a0;   // Blå
+$danger:    #c0392b;   // Röd
+$warning:   #b7791f;   // Orange
+$info:      #6a4ca3;   // Lila
+$light:     #f1f3f5;
+$dark:      #2c3e50;    
+
+$autocomplete-bg: #fff;
+$autocomplete-hover: #eee;
 
 // Eget standardtypsnitt.
-//
 // Bootstrap använder $font-family-sans-serif för sin
 // standardfont, så detta påverkar hela applikationen.
 $font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
@@ -51,9 +71,7 @@ $font-family-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
 // ============================================================
 // 3. BOOTSTRAP
 // ============================================================
-
 // Bootstrap importeras EFTER våra variabler.
-//
 // Därmed använder Bootstrap våra värden för exempelvis
 // primary, secondary, body-bg och font-family.
 @import "bootstrap";

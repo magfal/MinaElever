@@ -59,36 +59,12 @@ def get_selected_tags():
 
 def get_selected_media_tags():
     values = request.form.getlist("tag_ids")
-
     selected_tags = []
-
     for value in values:
         value = value.strip()
-
-        if not value:
+        if not value or not value.isdigit():
             continue
-
-        # Befintlig tagg
-        if value.isdigit():
-            tag = db.session.get(Tag, int(value))
-
-            if tag is not None:
-                selected_tags.append(tag)
-
-            continue
-
-        # Ny tagg
-        tag = db.session.scalar(
-            select(Tag).where(Tag.name == value)
-        )
-
-        if tag is None:
-            tag = Tag(
-                name=value,
-                tag_type=TagType.OTHER
-            )
-            db.session.add(tag)
-
-        selected_tags.append(tag)
-
+        tag = db.session.get(Tag, int(value))
+        if tag is not None:
+            selected_tags.append(tag)
     return selected_tags

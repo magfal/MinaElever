@@ -72,7 +72,6 @@ Ny uppgift
 
                                 <option value="{{ template.id }}">
                                     {{ template.title }}
-                                    – {{ template.template_type.value }}
                                 </option>
 
                             {% endfor %}
@@ -81,7 +80,33 @@ Ny uppgift
 
                     </div>
 
+                    <!-- Mall -->
 
+                    <div class="col-12 col-md-6">
+
+                        <label
+                            for="assignmentType"
+                            class="form-label">
+                            Typ av uppgift
+                        </label>
+
+                        <select
+                            id="assignmentType"
+                            name="assignment_type"
+                            class="form-select"
+                            required>
+
+                            {% for assignment_type in assignment_types %}
+
+                                <option value="{{ assignment_type.name }}">
+                                    {{ assignment_type.value }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
                     <!-- Starttid -->
 
                     <div class="col-12 col-md-6">

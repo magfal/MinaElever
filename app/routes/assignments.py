@@ -4,7 +4,7 @@ from flask import render_template, request, redirect, url_for, flash, g, abort
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.extensions import db
-from app.models import Template, Assignment, Student, Group, Team
+from app.models import Template, Assignment, AssignmentType, Student, Group, Team, Response, ResponseStatus, ResponseType, ResponseSource
 from app.services.utils import utc_now, local_to_utc, utcify, SWEDEN_TZ
 
 assignments_bp = Blueprint(
@@ -26,6 +26,31 @@ def assignment_status(assignment):
         return "Avslutad"
     return "Pågående"
 
+def update_assignment_response_status(student_id):
+    now = utc_now()
+    responses = db.session.scalars(
+        select(Response)
+        .join(Response.assignment)
+        .where(
+            Response.student_id == student_id,
+            Response.response_type == ResponseType.ASSIGNMENT,
+            Response.status == ResponseStatus.PREPARED,
+            Assignment.start_time.is_not(None),
+            Assignment.start_time <= now,
+            Assignment.end_time.is_(None) |
+            (Assignment.end_time > now),
+        )
+    ).all()
+
+    changed = False
+
+    for response in responses:
+        response.status = ResponseStatus.OPEN
+        changed = True
+
+    if changed:
+        db.session.commit()
+
 # Routes
 @assignments_bp.get("/manage")
 def manage():
@@ -36,7 +61,6 @@ def manage():
         select(Assignment)
         .options(
             selectinload(Assignment.template),
-            selectinload(Assignment.students),
         )
         .order_by(
             Assignment.start_time.desc()
@@ -129,6 +153,7 @@ def new():
         students=students,
         groups=groups,
         teams=teams,
+        assignment_types=AssignmentType,
         selected_student=selected_student,
         selected_students=selected_students,
         selected_student_ids=selected_student_ids,
@@ -165,6 +190,7 @@ def edit(assignment_id):
         "assignments/edit.html",
         assignment=assignment,
         templates=templates,
+         assignment_types=AssignmentType,
         students=students,
         groups=groups,
         teams=teams,
@@ -179,6 +205,15 @@ def create():
     end_time_text = request.form.get("end_time", "").strip()
     student_ids = request.form.getlist("student_ids")
     label = request.form.get("label", "").strip() or None
+    assignment_type_name = request.form.get("assignment_type", "").strip()
+    try:
+        assignment_type = AssignmentType[assignment_type_name]
+    except KeyError:
+        flash(
+            "Ogiltig uppgiftstyp.",
+            "warning",
+        )
+        return redirect(url_for("assignments.new"))
     # Kontrollera mall
     template = db.session.get(
         Template,
@@ -263,12 +298,31 @@ def create():
     assignment = Assignment(
         author_id=g.user.id,
         template_id=template.id,
+        assignment_type=assignment_type,
         label=label,
         start_time=start_time,
         end_time=end_time,
     )
-    assignment.students = students
+
     db.session.add(assignment)
+
+    response_status = (
+        ResponseStatus.OPEN
+        if start_time is not None and start_time <= utc_now()
+        else ResponseStatus.PREPARED
+    )
+
+    for student in students:
+        response = Response(
+            student=student,
+            author_id=g.user.id,
+            response_type=ResponseType.ASSIGNMENT,
+            source=ResponseSource.ASSIGNMENT,
+            status=response_status,
+            assignment=assignment,
+        )
+        assignment.responses.append(response)
+
     db.session.commit()
     flash(
         "Uppgiften skapades.",
@@ -281,6 +335,17 @@ def update(assignment_id):
     assignment = db.session.get(Assignment, assignment_id)
     if assignment is None:
         abort(404)
+    assignment_type_name = request.form.get("assignment_type", "").strip()
+    try:
+        assignment_type = AssignmentType[assignment_type_name]
+    except KeyError:
+            flash("Ogiltig uppgiftstyp.", "warning")
+            return redirect(
+                url_for(
+                "assignments.edit",
+                assignment_id=assignment.id,
+            )
+        )
     label = request.form.get("label", "").strip() or None
     start_time_text = request.form.get("start_time","").strip()
     end_time_text = request.form.get("end_time", "").strip()
@@ -364,7 +429,7 @@ def update(assignment_id):
     # Uppdatera
     assignment.start_time = start_time
     assignment.end_time = end_time
-    assignment.students = students
+    assignment.assignment_type = assignment_type
     db.session.commit()
     flash(
         "Uppgiften ändrades.",

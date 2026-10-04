@@ -1,9 +1,11 @@
 from flask import Blueprint, redirect, url_for, g
 from app.models import Teacher, Student
+from app.services.auth import teacher_required
 
 main_bp = Blueprint("main", __name__)
 
 @main_bp.get("/")
+@teacher_required
 def index():
     if isinstance(g.user, Teacher):
         return redirect(url_for("students.manage"))

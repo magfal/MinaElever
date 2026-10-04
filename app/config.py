@@ -13,6 +13,5 @@
 #
 # Miljöberoende värden (databasadress, hemliga nycklar osv)
 # bör istället läsas från miljövariabler i __init__.py.
-#
 
 MAX_TOKENS_PER_STUDENT = 5

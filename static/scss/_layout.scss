@@ -2,6 +2,36 @@
     margin-bottom: 1.5rem;
 }
 
+.desktop-nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.desktop-nav .nav-link {
+    color: #fff;
+}
+
+.desktop-nav .nav-link:hover,
+.desktop-nav .nav-link:focus {
+    color: #ffffff84;
+}
+
+.mobile-nav {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .desktop-nav {
+        display: none;
+    }
+
+    .mobile-nav {
+        display: block;
+        width: 140px;
+    }
+}
+
 #questionPreview {
     min-height: 100px;
 }
@@ -29,5 +59,79 @@
     overflow-y: auto;
 }
 
+.assignment-card {
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.assignment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.10) !important;
+}
+
+.assignment-description {
+    white-space: pre-line;
+}
+
+.student-header {
+    background: #fff;
+}
+
+.student-greeting {
+    font-size: 1.35rem;
+    font-weight: 500;
+}
+
+.student-xp {
+    color: var(--bs-primary);
+    font-weight: 900;
+}
+
+.student-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.student-badge {
+    width: 2.25rem;
+    height: 2.25rem;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    font-size: 1.15rem;
+
+    cursor: default;
+}
+
+.student-badge-1 {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.student-badge-2 {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.student-badge-3 {
+    background: #cff4fc;
+    color: #055160;
+}
+
+.student-badge-4 {
+    background: #e2d9f3;
+    color: #432874;
+}
+
+.student-badge-5 {
+    background: #ffe5d0;
+    color: #984c0c;
+}
 
 

@@ -1,21 +1,11 @@
 import os
-import uuid
-from pathlib import Path
-from PIL import Image, UnidentifiedImageError
-from werkzeug.utils import secure_filename
-from datetime import date, timedelta
-from thefuzz import fuzz, process
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, send_file
-from sqlalchemy import select, case, and_, func
-from sqlalchemy.dialects.mysql import match
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import  func
 from app.extensions import db
-from app.models import Media, Tag, TagType, QuestionType, Question, Choice, MediaType 
-from app.services.htmx import toast
-from app.services.auth import logout_everywhere, generate_code
-from app.services.utils import utc_now
+from app.models import Media, Tag, Question,MediaType, TagType 
 from app.services.utils import save_image
 from app.services.tags import get_selected_media_tags
+from app.services.auth import teacher_required
 
 media_bp = Blueprint(
     "media",
@@ -24,6 +14,7 @@ media_bp = Blueprint(
 )
 
 @media_bp.get("/")
+@teacher_required
 def manage():
     search = request.args.get("search", "").strip()
     selected_tag_ids = request.args.getlist("tag_ids")
@@ -81,17 +72,20 @@ def manage():
         )
 
     # Vanlig sidladdning
+    tag_types = list(TagType)
     return render_template(
         "media/manage.html",
         media=media,
         tags=tags,
+        tag_types=tag_types,
         selected_tag_ids=[int(tag_id) for tag_id in selected_tag_ids],
         search=search,
         date_from=date_from,
-        date_to=date_to,
+        date_to=date_to
     )
 
 @media_bp.get("/grid")
+@teacher_required
 def grid():
     search = request.args.get("search", "").strip()
     selected_tag_ids = request.args.getlist("tag_ids")
@@ -137,6 +131,7 @@ def grid():
     )
 
 @media_bp.post("/upload")
+@teacher_required
 def upload():
     image_file = request.files.get("image")
 
@@ -170,6 +165,7 @@ def upload():
     return redirect(url_for("media.manage"))
 
 @media_bp.get("/file/<int:media_id>")
+@teacher_required
 def media_file(media_id):
     media = db.session.get(Media, media_id)
     if media is None:
@@ -183,6 +179,7 @@ def media_file(media_id):
     )
 
 @media_bp.post("/<int:media_id>/edit")
+@teacher_required
 def edit(media_id):
     media = db.session.get(Media, media_id)
 
@@ -204,6 +201,7 @@ def edit(media_id):
     return redirect(url_for("media.manage"))
 
 @media_bp.post("/<int:media_id>/delete")
+@teacher_required
 def delete(media_id):
     media = db.session.get(Media, media_id)
     if media is None:

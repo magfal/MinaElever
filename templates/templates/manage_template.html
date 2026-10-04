@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {{ template.title }}
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid px-3 py-3">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="mb-1">
+                {{ template.title }}
+            </h2>
+
+            {% if template.description %}
+                <div class="text-muted">
+                    {{ template.description }}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="d-flex gap-2">
+
+            <a
+                href="{{ url_for(
+                    'templates.edit',
+                    template_id=template.id
+                ) }}"
+                class="btn btn-outline-primary">
+                Ändra frågor
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="templateQuestions"
+        class="vstack gap-4">
+
+        {% for link in question_links %}
+
+            <article
+                class="card template-question"
+                draggable="true"
+                data-question-id="{{ link.question.id }}">
+
+                <div class="card-header d-flex align-items-center">
+
+                    <span
+                        class="template-question-handle me-3"
+                        title="Dra för att flytta">
+                        <i class="bi bi-grip-vertical"></i>
+                    </span>
+
+                    <strong>
+                        Fråga {{ loop.index }}
+                    </strong>
+
+                    <div class="ms-auto">
+
+                        <a
+                            href="{{ url_for(
+                                'questions.edit_question',
+                                question_id=link.question.id,
+                                return_url=url_for(
+                                    'templates.manage_template',
+                                    template_id=template.id
+                                )
+                            ) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            Ändra
+                        </a>
+
+                    </div>
+
+                </div>
+
+                <div class="card-body">
+
+                    <div class="question-cell">
+
+                        <textarea
+                            class="question-source d-none"
+                            aria-hidden="true"
+                        >{{ link.question.text }}</textarea>
+
+                        <div class="question-rendered"></div>
+
+                    </div>
+
+                </div>
+
+            </article>
+
+        {% else %}
+
+            <div class="text-muted">
+                Mallen innehåller inga frågor.
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+{% endblock %}

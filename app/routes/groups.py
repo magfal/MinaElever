@@ -4,11 +4,12 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import Group, Team
 from app.services.htmx import toast
-from app.services.auth import logout_everywhere, generate_code
+from app.services.auth import logout_everywhere, generate_code, teacher_required
 
 groups_bp = Blueprint("groups", __name__, url_prefix="/groups")       
 
 @groups_bp.get("/manage")
+@teacher_required
 def manage():
     groups = db.session.scalars(
         select(Group)
@@ -35,6 +36,7 @@ def manage():
     )
 
 @groups_bp.get("/create_group")
+@teacher_required
 def new_group_modal():
     return render_template(
         "groups/_groups_new_form.html",
@@ -44,6 +46,7 @@ def new_group_modal():
     )
 
 @groups_bp.post("/create_group")
+@teacher_required
 def create_group():
     group_list = request.form.get("group_list", "").strip()
     archived = request.form.get("archived") is not None
@@ -92,6 +95,7 @@ def create_group():
     return response
     
 @groups_bp.get("/edit_group/<int:group_id>")
+@teacher_required
 def edit_group_modal(group_id):
     group = db.session.get(Group, group_id)
     if not group:
@@ -106,6 +110,7 @@ def edit_group_modal(group_id):
         )
 
 @groups_bp.post("/edit_group/<int:group_id>")
+@teacher_required
 def edit_group(group_id):
     name = request.form.get("name", "").strip()
     archived = request.form.get("archived") is not None
@@ -150,6 +155,7 @@ def edit_group(group_id):
     return response
 
 @groups_bp.post("/delete_group/<int:group_id>")
+@teacher_required
 def delete_group(group_id):
     group = db.session.get(Group, group_id)
     if not group:
@@ -164,6 +170,7 @@ def delete_group(group_id):
     return redirect(url_for("groups.manage"))
 
 @groups_bp.get("/create_team")
+@teacher_required
 def new_team_modal():
     return render_template(
         "groups/_teams_new_form.html",
@@ -173,6 +180,7 @@ def new_team_modal():
     )
 
 @groups_bp.post("/create_team")
+@teacher_required
 def create_team():
     team_list = request.form.get("team_list", "").strip()
     if not team_list:
@@ -221,6 +229,7 @@ def create_team():
     return response
 
 @groups_bp.get("/edit_team/<int:team_id>")
+@teacher_required
 def edit_team_modal(team_id):    
     team = db.session.get(Team, team_id)
     if not team:
@@ -235,6 +244,7 @@ def edit_team_modal(team_id):
         )
 
 @groups_bp.post("/edit_team/<int:team_id>")
+@teacher_required
 def edit_team(team_id):
     name = request.form.get("name", "").strip()
     description = request.form.get("description", "").strip()
@@ -268,6 +278,7 @@ def edit_team(team_id):
     return response
 
 @groups_bp.post("/delete_team/<int:team_id>")
+@teacher_required
 def delete_team(team_id):
     team = db.session.get(
         Team,
@@ -285,6 +296,7 @@ def delete_team(team_id):
     return redirect(url_for("groups.manage"))
 
 @groups_bp.get("/list_modal/<string:entity_type>/<int:entity_id>")
+@teacher_required
 def list_modal(entity_type, entity_id):
     if entity_type == "group":
         entity = db.get_or_404(Group, entity_id)
@@ -310,6 +322,7 @@ def list_modal(entity_type, entity_id):
     )
 
 @groups_bp.get("/list_print/<string:entity_type>/<int:entity_id>")
+@teacher_required
 def list_print(entity_type, entity_id):
     if entity_type == "group":
         entity = db.get_or_404(Group, entity_id)

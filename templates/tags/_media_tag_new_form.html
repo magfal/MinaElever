@@ -1,0 +1,77 @@
+<form
+    id="mediaTagForm"
+    hx-post="{{ url_for('tags.create_media_tag') }}"
+    hx-target="#mediaTagModalContent"
+    hx-swap="none">
+
+    <div class="modal-header">
+        <h5 class="modal-title">
+            Lägg till tagg
+        </h5>
+
+        <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Stäng">
+        </button>
+    </div>
+
+    <div class="modal-body">
+
+        <div class="mb-3">
+            <label
+                for="mediaTagName"
+                class="form-label">
+                Namn
+            </label>
+
+            <input
+                type="text"
+                class="form-control"
+                id="mediaTagName"
+                name="name"
+                value="{{ name }}"
+                required
+                maxlength="50">
+        </div>
+
+        <div class="mb-3">
+            <label
+                for="mediaTagType"
+                class="form-label">
+                Taggtyp
+            </label>
+
+            <select
+                class="form-select"
+                id="mediaTagType"
+                name="tag_type"
+                required>
+
+                {% for tag_type in tag_types %}
+                    <option value="{{ tag_type.name }}">
+                        {{ tag_type.value }}
+                    </option>
+                {% endfor %}
+
+            </select>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal">
+            Avbryt
+        </button>
+
+        <button
+            type="submit"
+            class="btn btn-primary">
+            Lägg till
+        </button>
+    </div>
+
+</form>

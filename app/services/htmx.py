@@ -1,5 +1,4 @@
 import json
-from flask import redirect, url_for
 
 def toast(response, message, level="success", duration=5000, reswap=None):
     response.headers["HX-Trigger"] = json.dumps({

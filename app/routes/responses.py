@@ -1,22 +1,9 @@
 from flask import Blueprint
-import os
-import random
-import string
-import hashlib
-import secrets
 from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
-from rapidfuzz import fuzz
-from flask import Flask, render_template, request, redirect, session, url_for, flash, jsonify, g, make_response, abort
-from sqlalchemy import select, delete, and_, or_
-from sqlalchemy.exc import IntegrityError
-from flask_sqlalchemy import SQLAlchemy
+from flask import render_template, request, redirect, session, url_for, flash
 from app.extensions import db
-from app.models import QuestionType, TagType, MediaType, TemplateType, PointType
-from app.models import QuestionTemplateLink
-from app.models import Question, Template, Assignment, Response, User, Teacher, Student, Group, PointTransaction, Badge, Tag, Choice, RememberToken, Media 
-from app.services.auth import generate_code, create_remember_token
-from flask import current_app
+from app.models import Question, Response, Choice
+from app.services.auth import teacher_required
 
 responses_bp = Blueprint(
     "responses", 
@@ -26,11 +13,13 @@ responses_bp = Blueprint(
 
 #Sparar response
 @responses_bp.route("/add_observation", methods=["GET", "POST"])
+@teacher_required
 def add_observation():
     pass
 
 #Sparar response
 @responses_bp.route("/add_note", methods=["GET", "POST"])
+@teacher_required
 def add_note():
     pass
 
@@ -56,32 +45,33 @@ def save_response():
     return redirect(url_for("students"))
 
 @responses_bp.route("/response/<int:id>", methods=["GET", "POST"])
+@teacher_required
 def response(id):
-   if "student_id" not in session:
-       return redirect("/login")
-   question = Question.query.get(id)
-   if request.method == "POST":
-       student_id = session["student_id"]
-       ip = request.remote_addr
-       device = request.headers.get("User-Agent")
-       response = Response(
-           student_id=student_id,
-           question_id=id,
-           text_answer=request.form.get("text"),
-           slider_value=request.form.get("slider"),
-           choice_id=request.form.get("choice"),
-           ip_address=ip,
-           device=device
-       )
-       db.session.add(response)
-       db.session.commit()
-       return redirect("/")
-   choices = Choice.query.filter_by(
-       assignment_id=id
-   ).all()
-   return render_template(
-       "response.html",
-        question=question,
-        choices=choices
-   )
+    if "student_id" not in session:
+        return redirect("/login")
+    question = Question.query.get(id)
+    if request.method == "POST":
+        student_id = session["student_id"]
+        ip = request.remote_addr
+        device = request.headers.get("User-Agent")
+        response = Response(
+            student_id=student_id,
+            question_id=id,
+            text_answer=request.form.get("text"),
+            slider_value=request.form.get("slider"),
+            choice_id=request.form.get("choice"),
+            ip_address=ip,
+            device=device
+        )
+        db.session.add(response)
+        db.session.commit()
+        return redirect("/")
+    choices = Choice.query.filter_by(
+        assignment_id=id
+    ).all()
+    return render_template(
+        "response.html",
+            question=question,
+            choices=choices
+    )
 

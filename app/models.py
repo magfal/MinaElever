@@ -2,6 +2,8 @@ from __future__ import annotations
 import enum
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import JSON, Column, Table, String, Enum, Boolean, Text, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy.types import TypeDecorator
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 from .services.utils import utc_now, utcify
@@ -24,7 +26,7 @@ class TagType(enum.Enum):
     SUBJECT = "Ämne"
     AREA = "Område"
     DECK = "Kortlek"
-    OTHER = "Allmän"
+    OTHER = "Etikett"
 
 class MediaType(enum.Enum):
     IMAGE = "Bild"
@@ -32,27 +34,60 @@ class MediaType(enum.Enum):
     AUDIO = "Ljud"
     DOCUMENT = "Dokument"
 
-class TemplateType(enum.Enum):
-    TASK = "Uppgift"                # Uppgift elev gör under lektion eller hemma (med hjälpmedel)
-    INQUIRY = "Undersökande fråga"  # Uppmaning till elev att ställa fråga
-    TEST = "Test"                   # Uppgift elev gör i skolan utan hjälp
-    DIAGNOSTIC = "Diagnos"          # Uppgift eleven gör i skolan men som inte bedöms
-    FLASHCARD = "Flashcard"         # Uppgift elev får att öva på
-    REFLECTION = "Reflexion"        # Elevreflexion eller utvärdering 
-    OBSERVATION = "Observation"     # Observation lärare gör av elevs förmåga
-    NOTE = "Notering"               # Notering av elevs beteende som lärare gör
+class AssignmentType(enum.Enum):
+    TASK = "Uppgift" 
+    TEST = "Test"    
+    DIAGNOSTIC = "Diagnos"
+    FLASHCARD = "Flashcard"
+    REFLECTION = "Reflexion"
+    INQUIRY = "Undersökande fråga"
+
+class ResponseType(enum.Enum):
+    ASSIGNMENT = "Uppgift"
+    ASSESSMENT = "Bedömning"
+    QUESTION = "Fråga"
+    ANSWER = "Svar"
+    OBSERVATION = "Observation"
+    COMMENT = "Kommentar"           #Notering
+
+class ResponseStatus(enum.Enum):
+    PREPARED = "Skapad"
+    OPEN = "Öppnad"
+    SAVED = "Sparad"
+    SUBMITTED = "Inlämnad"
+    CLOSED = "Stängd"
+    REVIEW_IN_PROCESS = "Granskning pågår"
+    ASSESSED = "Bedömd"
+    FINALIZED = "Slutförd"
+    
+class ResponseSource(enum.Enum):
+    ASSIGNMENT = "Automatiskt via uppgift"
+    TEACHER = "Lärare"
+    STUDENT = "Elev"
+    PEER = "Kamrat"
 
 class PointType(enum.Enum):
     CORRECT_ANSWER = "Rätt svar"
     ASSIGNMENT_SUBMITTED = "Inlämnad uppgift"
     EARLY_SUBMISSION = "Tidig inlämning"
-    WRITTEN_QUESTION = "Skrivit fråga"
-    ANSWERED_QUESTION = "Svarat på fråga"
-    FLASHCARD = "Flashcard"
-    STREAK_BONUS = "Streak bonus"
+    WRITTEN_QUESTION = "Skrivit en fråga"
+    ANSWERED_QUESTION = "Svarat på en fråga"
+    PRACTICED_FLASHCARD = "Ävat på flashcard"
     TEACHER_REWARD = "Lärare"
-    BADGE_REWARD = "Badge reward"
+    BADGE_REWARD = "Belöning för badge"
+    TEACHER_REVIEW = "Lärarbedömning"
 
+class PointRuleType(enum.Enum):
+    BASE_VALUE = "Grundpoäng"
+    LIMIT = "Begränsning"
+    MULTIPLIER = "Multiplikator"
+    PERCENT_BONUS = "Procentuell bonus"
+
+class PointLimitPeriod(enum.Enum):
+    DAY = "day"
+    WEEK = "week"
+    ASSIGNMENT = "assignment"
+    
 # -------------------------------------------------
 # ASSOCIATION + JOINT ENTITY TABLES 
 # -------------------------------------------------
@@ -75,13 +110,6 @@ student_team_link = Table(
     "student_team_link",
     Base.metadata,
     Column("team_id", ForeignKey("teams.id"), primary_key=True),
-    Column("student_id", ForeignKey("students.id"), primary_key=True),
-)
-
-student_assignment_link = Table(
-    "student_assignment_link",
-    Base.metadata,  
-    Column("assignment_id", ForeignKey("assignments.id"), primary_key=True),
     Column("student_id", ForeignKey("students.id"), primary_key=True),
 )
 
@@ -127,7 +155,7 @@ class Question(Base):
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     text: Mapped[str] = mapped_column(Text)
     question_type: Mapped[QuestionType] = mapped_column(Enum(QuestionType), default=QuestionType.TEXT, nullable=False)
-    expected_answer: Mapped[dict|None] = mapped_column(JSON, nullable=True)
+    expected_answer: Mapped[dict|None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)    
     # Relationer
     author: Mapped[User] = relationship(back_populates="questions_created", foreign_keys=[author_id])
@@ -143,28 +171,27 @@ class Template(Base):
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     title: Mapped[str] = mapped_column(String(120))
     description: Mapped[str|None] = mapped_column(Text)
-    template_type: Mapped[TemplateType] = mapped_column(Enum(TemplateType),  default=TemplateType.TASK, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     # Relationer
     author: Mapped[User] = relationship(back_populates="templates_created", foreign_keys=[author_id])
     question_links: Mapped[list["QuestionTemplateLink"]] = relationship(back_populates="template", cascade="all, delete-orphan")
     assignments: Mapped[list["Assignment"]] = relationship(back_populates="template")
-    responses: Mapped[list["Response"]] = relationship(back_populates="template")
 
 class Assignment(Base):
     __tablename__ = "assignments"
     id: Mapped[int] = mapped_column(primary_key=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     template_id: Mapped[int] = mapped_column(ForeignKey("templates.id"), index=True)
-    label: Mapped[str | None] = mapped_column(String(20), nullable=True,)
-    start_time: Mapped[datetime|None] = mapped_column(DateTime(timezone=True), nullable=True)
-    end_time: Mapped[datetime|None] = mapped_column(DateTime(timezone=True), nullable = True)
+    assignment_type: Mapped[AssignmentType] = mapped_column(Enum(AssignmentType),  default=AssignmentType.TASK, nullable=False)
+    label: Mapped[str | None] = mapped_column(String(20))
+    start_time: Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    end_time: Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     # Relationer
     author: Mapped[User] = relationship(back_populates="assignments_created", foreign_keys=[author_id])
-    template: Mapped[Template] = relationship(back_populates="assignments")
-    responses: Mapped[list[Response]] = relationship(back_populates="assignment")
-    students: Mapped[list[Student]] = relationship(secondary=student_assignment_link, back_populates="assignments")
+    template: Mapped["Template"] = relationship(back_populates="assignments")
+    point_transactions: Mapped[list["PointTransaction"]] = relationship(back_populates="assignment", cascade="all, delete-orphan")
+    responses: Mapped[list["Response"]] = relationship(back_populates="assignment", cascade="all, delete-orphan")
 
 class Response(Base):
     __tablename__ = "responses"
@@ -172,21 +199,20 @@ class Response(Base):
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), nullable=False, index=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     question_id: Mapped[int] = mapped_column(ForeignKey("questions.id"), nullable=True)
-    template_id: Mapped[int] = mapped_column(ForeignKey("templates.id"), nullable=True)
-    assignment_id: Mapped[int|None] = mapped_column(ForeignKey("assignments.id"), nullable=True, index=True)
+    assignment_id: Mapped[int] = mapped_column(ForeignKey("assignments.id"), nullable=True)
     parent_response_id: Mapped[int|None] = mapped_column(ForeignKey("responses.id"),nullable=True)
+    response_type: Mapped[ResponseType] = mapped_column(Enum(ResponseType), nullable=False)
+    source: Mapped[ResponseSource] = mapped_column(Enum(ResponseSource), nullable=False)
+    status: Mapped[ResponseStatus] = mapped_column(Enum(ResponseStatus), default=ResponseStatus.PREPARED, nullable=False)
     answer:Mapped[dict|None] = mapped_column(JSON)
-    student_question: Mapped[str|None] = mapped_column(Text)
-    comment: Mapped[str|None] = mapped_column(Text)
     is_private: Mapped[bool] = mapped_column(default=False)
-    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=True)
     ip_address: Mapped[str|None] = mapped_column(String(100))
     device: Mapped[str|None] = mapped_column(String(300))
     # Relationer
     student: Mapped[Student] = relationship(back_populates="responses", foreign_keys=[student_id])
     author: Mapped[User] = relationship(back_populates="responses_created", foreign_keys=[author_id])
-    assignment: Mapped[Assignment|None] = relationship(back_populates="responses")
-    template: Mapped[Template] = relationship(back_populates="responses")
+    assignment: Mapped[Assignment] = relationship(back_populates="responses")
     question: Mapped[Question] = relationship(back_populates="responses")
     media: Mapped[list[Media]] = relationship(secondary=response_media_link, back_populates="responses")
     point_transactions: Mapped[list[PointTransaction]] = relationship(back_populates="response",cascade="all, delete-orphan")
@@ -254,7 +280,6 @@ class Student(User):
     group: Mapped["Group|None"] = relationship(back_populates="students", foreign_keys=[group_id])  
     teams: Mapped[list[Team]] = relationship(secondary=student_team_link, back_populates="students")
     responses: Mapped[list[Response]] = relationship(back_populates="student", foreign_keys="Response.student_id")
-    assignments: Mapped[list[Assignment]] = relationship(secondary=student_assignment_link, back_populates="students")
     point_transactions: Mapped[list[PointTransaction]] = relationship(back_populates="student",cascade="all, delete-orphan")
     badges: Mapped[list[Badge]] = relationship(secondary=student_badge_link, back_populates="students", passive_deletes=True)
     # Arv
@@ -276,7 +301,7 @@ class Student(User):
                 )
             )
         ]
-
+    
     @property
     def total_xp(self):
         return sum(p.xp for p in self.point_transactions)
@@ -295,18 +320,31 @@ class Student(User):
 # -------------------------------------------------
 # GAMIFICATION TABLES
 # -------------------------------------------------
+class PointRule(Base):
+    __tablename__ = "point_rules"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    point_type: Mapped[PointType | None] = mapped_column(Enum(PointType))
+    rule_type: Mapped[PointRuleType] = mapped_column(Enum(PointRuleType), nullable=False)
+    parameters: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    start_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)
+
 class PointTransaction(Base):
     __tablename__ = "point_transactions"
     id: Mapped[int] = mapped_column(primary_key=True)
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id"), index=True)
     response_id: Mapped[int|None] = mapped_column(ForeignKey("responses.id"), nullable=True)
-    xp: Mapped[int] = mapped_column(default=0)
-    reason: Mapped[PointType] = mapped_column(Enum(PointType), nullable=False)
+    assignment_id: Mapped[int | None] = mapped_column(ForeignKey("assignments.id"), nullable=True, index=True)
+    xp: Mapped[int] = mapped_column(default=0, nullable=False)
+    point_type: Mapped[PointType] = mapped_column(Enum(PointType), nullable=False)
     comment: Mapped[str|None] = mapped_column(Text)
     earned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     # Relationer
     student: Mapped[Student] = relationship(back_populates="point_transactions")
     response: Mapped[Response|None] = relationship(back_populates="point_transactions")
+    assignment: Mapped[Assignment | None] = relationship(back_populates="point_transactions")
 
 class Badge(Base):
     __tablename__ = "badges"
@@ -314,7 +352,7 @@ class Badge(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True)
     description: Mapped[str|None] = mapped_column(Text)
     icon: Mapped[str|None] = mapped_column(String(100))
-    xp_reward: Mapped[int] = mapped_column(default=0)
+    levels: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
     #Relationer
     students: Mapped[list["Student"]] = relationship(secondary=student_badge_link, back_populates="badges")
 
@@ -326,7 +364,7 @@ class Tag(Base):
     __tablename__ = "tags"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True)
-    description: Mapped[str | None] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(String(120))  # Ska bort
     tag_type: Mapped[TagType] = mapped_column(Enum(TagType), nullable=False)
     # Relationer
     questions: Mapped[list["Question"]] = relationship(secondary=question_tag_link, back_populates="tags")

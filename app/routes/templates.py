@@ -2,8 +2,9 @@ from flask import Blueprint, render_template, request, g, abort, redirect, url_f
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.extensions import db
-from app.models import Template, TemplateType, Question, QuestionTemplateLink
+from app.models import Template, AssignmentType, Question, QuestionTemplateLink
 from app.services.utils import utc_now, utcify
+from app.services.auth import teacher_required
 
 templates_bp = Blueprint(
     "templates",
@@ -22,9 +23,9 @@ def template_is_locked(template):
 
 # Routes
 @templates_bp.get("/manage")
+@teacher_required
 def manage():
     search = request.args.get("search", "").strip()
-    template_type_name = request.args.get("template_type", "").strip()
     query = (
         select(Template)
         .options(
@@ -36,15 +37,6 @@ def manage():
         query = query.where(
             Template.title.ilike(f"%{search}%")
         )
-    if template_type_name:
-        try:
-            template_type = TemplateType[template_type_name]
-        except KeyError:
-            template_type = None
-        if template_type:
-            query = query.where(
-                Template.template_type == template_type
-            )
     query = query.order_by(
         Template.created_at.desc()
     )
@@ -58,13 +50,13 @@ def manage():
     return render_template(
         "templates/manage.html",
         templates=templates,
-        template_types=list(TemplateType),
-        template_type_name=template_type_name,
+        template_types=list(AssignmentType),
         search=search,
         template_is_locked=template_is_locked,
     )
 
 @templates_bp.get("/new")
+@teacher_required
 def new():
     questions = db.session.scalars(
         select(Question)
@@ -73,27 +65,23 @@ def new():
     return render_template(
         "templates/new.html",
         template=None,
-        template_types=list(TemplateType),
+        template_types=list(AssignmentType),
         questions=questions,
+        table_mode="template",
+        selected_question_ids=set(),
     )
 
 @templates_bp.post("/new")
+@teacher_required
 def create():
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
-    template_type_name = request.form.get("template_type", "").strip()
     if not title:
         flash("Mallen måste ha en titel.", "warning")
-        return redirect(url_for("templates.new"))
-    try:
-        template_type = TemplateType[template_type_name]
-    except KeyError:
-        flash("Ogiltig malltyp.", "danger")
         return redirect(url_for("templates.new"))
     template = Template(
         title=title,
         description=description or None,
-        template_type=template_type,
         author_id=g.user.id,
     )
     db.session.add(template)
@@ -145,6 +133,7 @@ def create():
     )
 
 @templates_bp.get("/edit/<int:template_id>")
+@teacher_required
 def edit(template_id):
     template = db.session.get(Template, template_id)
     if template is None:
@@ -153,15 +142,22 @@ def edit(template_id):
         select(Question)
         .order_by(Question.created_at.desc())
     ).all()
+    selected_question_ids = {
+        link.question_id
+        for link in template.question_links
+    }
     return render_template(
         "templates/new.html",
         template=template,
-        template_types=list(TemplateType),
+        template_types=list(AssignmentType),
         questions=questions,
         template_is_locked=template_is_locked(template),
+        table_mode="template",
+        selected_question_ids=selected_question_ids,
     )
 
 @templates_bp.post("/edit/<int:template_id>")
+@teacher_required
 def update(template_id):
     template = db.session.get(
         Template,
@@ -173,7 +169,6 @@ def update(template_id):
         abort(403)
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
-    template_type_name = request.form.get("template_type", "").strip()
     if not title:
         flash(
             "Mallen måste ha en titel.",
@@ -185,24 +180,8 @@ def update(template_id):
                 template_id=template.id,
             )
         )
-    try:
-        template_type = TemplateType[
-            template_type_name
-        ]
-    except KeyError:
-        flash(
-            "Ogiltig malltyp.",
-            "danger",
-        )
-        return redirect(
-            url_for(
-                "templates.edit",
-                template_id=template.id,
-            )
-        )
     template.title = title
     template.description = description or None
-    template.template_type = template_type
     question_ids = request.form.getlist(
         "question_ids"
     )
@@ -254,4 +233,30 @@ def update(template_id):
             "templates.edit",
             template_id=template.id,
         )
+    )
+
+@templates_bp.get("/manage/<int:template_id>")
+@teacher_required
+def manage_template(template_id):
+    template = db.session.scalar(
+        select(Template)
+        .options(
+            selectinload(Template.question_links)
+            .selectinload(QuestionTemplateLink.question)
+        )
+        .where(Template.id == template_id)
+    )
+
+    if template is None:
+        abort(404)
+
+    question_links = sorted(
+        template.question_links,
+        key=lambda link: link.order_index,
+    )
+
+    return render_template(
+        "templates/manage_template.html",
+        template=template,
+        question_links=question_links,
     )

@@ -19,20 +19,28 @@
                     class="card-img-top"
                     alt="{{ item.name }}">
             {% endif %}
-
             <div class="card-body d-flex flex-column">
                 <div class="mt-auto pt-3">
-
                     {% if item.tags %}
                         <div class="mb-2">
                             {% for tag in item.tags %}
-                                <span class="badge text-bg-secondary">
+                                <span class="badge
+                                    {% if tag.tag_type.name == 'SUBJECT' %}
+                                        text-bg-primary
+                                    {% elif tag.tag_type.name == 'AREA' %}
+                                        text-bg-secondary
+                                    {% elif tag.tag_type.name == 'DECK' %}
+                                        text-bg-info
+                                    {% elif tag.tag_type.name == 'OTHER' %}
+                                        text-bg-dark
+                                    {% else %}
+                                        text-bg-light
+                                    {% endif %}">
                                     {{ tag.name }}
                                 </span>
                             {% endfor %}
                         </div>
                     {% endif %}
-
                     <div class="fw-semibold">
                         {{ item.name }}
                     </div>

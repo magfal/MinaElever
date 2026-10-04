@@ -1,5 +1,3 @@
-<!-- templates/base.html -->
-
 <!DOCTYPE html>
 <html lang="sv">
     <head>
@@ -19,47 +17,62 @@
                     <small class="d-block small">leder framåt</small>
                 </a>
                 <div class="desktop-nav">
-                    <a class="nav-link" href="{{ url_for('groups.manage') }}">
-                        Grupper
-                    </a>
-                    <a class="nav-link" href="{{ url_for('students.manage') }}">
-                        Elever
-                    </a>
-                    <a class="nav-link" href="{{ url_for('media.manage') }}">
-                        Bilder
-                    </a>
-                    <a class="nav-link" href="{{ url_for('tags.manage') }}">
-                        Taggar
-                    </a>
-                    <a class="nav-link" href="{{ url_for('questions.manage') }}">
-                        Frågor
-                    </a>
-                    <a class="nav-link" href="{{ url_for('templates.manage') }}">
-                        Mallar
-                    </a>
-                    <a class="nav-link" href="{{ url_for('assignments.manage') }}">
+                    <a
+                        class="nav-link"
+                        href="{% if teacher_view %}
+                            {{ url_for('student.student_view', student_id=student.id) }}
+                        {% else %}
+                            {{ url_for('student.index') }}
+                        {% endif %}"
+                    >
                         Uppgifter
                     </a>
-                    <a class="nav-link" href="{{ url_for('gamification.manage_rules') }}">
-                        Spelregler
-                    </a> 
+                    <a class="nav-link" href="">
+                        Frågor/Svar
+                    </a>
+                    <a class="nav-link" href="">
+                        Gammalt
+                    </a>
+                    <a class="nav-link" href="">
+                        XP
+                    </a>
                 </div>
                 <div class="mobile-nav">
                     <select class="form-select form-select-sm"
                             onchange="if (this.value) window.location.href=this.value;">
-                        <option value="">Meny</option>
-                        <option value="{{ url_for('groups.manage') }}">Grupper</option>
-                        <option value="{{ url_for('students.manage') }}">Elever</option>
-                        <option value="{{ url_for('media.manage') }}">Media</option>
-                        <option value="{{ url_for('tags.manage') }}">Taggar</option>
-                        <option value="{{ url_for('questions.manage') }}">Frågor</option>
-                        <option value="{{ url_for('templates.manage') }}">Mallar</option>
-                        <option value="{{ url_for('assignments.manage') }}">Uppgifter</option>
-                        <option value="{{ url_for('gamification.manage_rules') }}">Spelregler</option>
+                        <option value="{% if teacher_view %}
+                            {{ url_for('student.student_view', student_id=student.id) }}
+                        {% else %}
+                            {{ url_for('student.index') }}
+                        {% endif %}">Uppgifter</option>
+                        <option value="{{ url_for('student.questions', student_id=student.id) }}">Frågor/Svar</option>
+                        <option value="{{ url_for('student.old_assignments', student_id=student.id) }}">Gammalt</option>
+                        <option value="{{ url_for('student.xp', student_id=student.id) }}">XP</option>
                     </select>
                 </div>
-            </div>
         </nav>
+        <div class="student-header border-bottom">
+            <div class="container-fluid px-3 py-3">
+                <div class="student-greeting">
+                    Hej {{ student.name }}, du har
+                    <span class="student-xp">{{ student.total_xp }}</span> XP.
+                </div>
+                {% if badges %}
+                    <div class="student-badges mt-2">
+                        {% for badge in badges %}
+                            <span
+                                class="student-badge student-badge-{{ badge.level }}"
+                                title="{{ badge.name }}"
+                                data-bs-toggle="tooltip"
+                            >
+                                <i class="bi {{ badge.icon }}"></i>
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>    
         <div
             x-data="toast"
             @toast.window="show($event.detail)"
@@ -129,8 +142,7 @@
             };
         </script>
         <script defer src="{{ url_for('static', filename='js/mathjax/tex-svg.js') }}"></script>
+        </script>
         {% block scripts %}{% endblock %}
     </body>
 </html>
-
-<!--    <script src="{{ url_for('static', filename='js/init.js') }}"></script> -->

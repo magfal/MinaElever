@@ -59,6 +59,10 @@
                 {% else %}
                     {{ url_for('questions.create_question') }}
                 {% endif %}">
+        <input
+        type="hidden"
+        name="return_url"
+        value="{{ return_url }}">
     <!-- FRÅGA -->
         <div class="card mb-4">
             <div class="card-header d-flex align-items-baseline gap-2">

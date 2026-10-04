@@ -16,27 +16,26 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from flask import Flask, render_template, g, session, request, redirect, url_for
+from flask import Flask, render_template
 from sqlalchemy.exc import SQLAlchemyError
-from .services.auth import register_auth
-from .extensions import db
-from .services.utils import SWEDEN_TZ, utcify
-from .models import User
+from app.extensions import db
+from app.services.auth import register_auth
+from app.services.utils import SWEDEN_TZ, utcify
         
 def register_blueprints(app):
-    from .routes.assignments import assignments_bp
-    from .routes.auth import auth_bp
-    from .routes.gamification import gamification_bp
-    from .routes.groups import groups_bp
-    from .routes.main import main_bp
-    from .routes.media import media_bp
-    from .routes.questions import questions_bp
-    from .routes.responses import responses_bp
-    from .routes.statistics import statistics_bp
-    from .routes.student import student_bp
-    from .routes.students import students_bp
-    from .routes.tags import tags_bp
-    from .routes.templates import templates_bp
+    from app.routes.assignments import assignments_bp
+    from app.routes.auth import auth_bp
+    from app.routes.gamification import gamification_bp
+    from app.routes.groups import groups_bp
+    from app.routes.main import main_bp
+    from app.routes.media import media_bp
+    from app.routes.questions import questions_bp
+    from app.routes.responses import responses_bp
+    from app.routes.statistics import statistics_bp
+    from app.routes.student import student_bp
+    from app.routes.students import students_bp
+    from app.routes.tags import tags_bp
+    from app.routes.templates import templates_bp
     app.register_blueprint(assignments_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(gamification_bp)
@@ -64,8 +63,10 @@ def configure_app(app):
     """
     default_db = "sqlite:///mina_elever.db"
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", default_db)
-    app.config["SECRET_KEY"] = "en-valfri-hemlig-text-sträng"
-    app.config["UPLOAD_FOLDER"] = Path(app.instance_path) / "uploads"
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key")
+    upload_folder = Path(app.instance_path) / "uploads"
+    upload_folder.mkdir(parents=True, exist_ok=True)
+    app.config["UPLOAD_FOLDER"] = upload_folder
 
 def register_commands(app):
     @app.cli.command("create-db")
@@ -124,20 +125,4 @@ def create_app():
     register_blueprints(app)
     register_commands(app)
     register_error_handlers(app) 
-    @app.before_request
-    def load_logged_in_user():
-        g.user = None
-        user_id = session.get("user_id")
-        if user_id is not None:
-            g.user = db.session.get(User, user_id)
-        if g.user is None:
-            allowed_endpoints = {
-                "main.index",
-                "auth.login_get",
-                "auth.login_post",
-                "auth.bootstrap",
-                "static",
-            }
-            if request.endpoint not in allowed_endpoints:
-                return redirect(url_for("auth.login_get"))
     return app

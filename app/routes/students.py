@@ -442,15 +442,3 @@ def student_timeline(student_id):
         student=student,
         responses=responses
         )
-
-@students_bp.get("/<int:student_id>/view")
-@teacher_required
-def view_student(student_id):
-    student = db.session.get(Student, student_id)
-    if student is None:
-        abort(404)
-    return render_template(
-        "dashboard.html",
-        student=student,
-        assignments=student.active_assignments,
-    )
