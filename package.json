@@ -18,6 +18,14 @@
   },
   "homepage": "https://github.com/magfal/MinaElever#readme",
   "dependencies": {
-    "bootstrap": "^5.3.8"
+    "@fontsource/inter": "^5.3.0",
+    "alpinejs": "^3.17.4",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
+    "dompurify": "^3.4.16",
+    "htmx.org": "^2.0.11",
+    "marked": "^18.0.14",
+    "mathjax": "^3.2.2",
+    "tom-select": "^2.6.2"
   }
 }
