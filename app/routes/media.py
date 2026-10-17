@@ -1,4 +1,5 @@
 import os
+from datetime import date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, send_file
 from sqlalchemy import  func
 from app.extensions import db
@@ -25,30 +26,37 @@ def manage():
         db.session.query(Media)
         .filter(Media.media_type == MediaType.IMAGE)
     )
-
     # Sök på bildnamn
     if search:
         query = query.filter(
             Media.name.ilike(f"%{search}%")
         )
-
     # Alla valda taggar måste finnas på bilden
     for tag_id in selected_tag_ids:
         query = query.filter(
             Media.tags.any(Tag.id == int(tag_id))
         )
-
-    # Från-datum
+    #Från datum
     if date_from:
-        query = query.filter(
-            func.date(Media.created_at) >= date_from
+        try:
+            date_from = date.fromisoformat(date_from)
+        except ValueError:
+            date_from = None
+    if date_from:
+        query = query.where(
+            Media.created_at >= date_from
         )
-
-    # Till-datum
+    # Till datum
     if date_to:
-        query = query.filter(
-            func.date(Media.created_at) <= date_to
-        )
+        try:
+            date_to = date.fromisoformat(date_to)
+        except ValueError:
+            date_to = None
+    if date_to:
+        query = query.where(
+                Media.created_at
+                < date_to + timedelta(days=1)
+            )
 
     media = (
         query

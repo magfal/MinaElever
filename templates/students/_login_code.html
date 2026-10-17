@@ -1,0 +1,24 @@
+<div id="loginCodeField">
+
+    <div class="input-group">
+
+        <input
+            type="text"
+            name="login_code"
+            class="form-control"
+            value="{{ student.login_code }}"
+            readonly>
+
+        <button
+            type="button"
+            class="btn btn-outline-primary"
+            hx-post="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
+            hx-target="#loginCodeField"
+            hx-swap="outerHTML"
+            hx-vals='{"action": "new_code"}'>
+            Generera ny kod
+        </button>
+
+    </div>
+
+</div>

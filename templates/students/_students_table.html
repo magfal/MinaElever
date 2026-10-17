@@ -38,17 +38,11 @@
                         value="observation">
                         Observation
                     </button>
-                    <button
-                        class="btn btn-success btn-sm"
-                        name="type"
-                        value="note">
-                        Notering
-                    </button>
                 </th>
                 <th class="text-end">
                     <button
                         class="btn btn-sm btn-primary"
-                        hx-get="{{ url_for('students.edit_students') }}"
+                        hx-get="{{ url_for('students.edit_students_modal') }}"
                         hx-target="#studentModalContent"
                         hx-swap="innerHTML"
                         hx-include=".student-checkbox:checked"
@@ -103,11 +97,6 @@
                             href="{{ url_for('responses.add_observation', student_id=student.id) }}"
                             class="btn btn-sm btn-outline-primary">
                             Observation
-                        </a>
-                        <a
-                            href="{{ url_for('responses.add_note', student_id=student.id) }}"
-                            class="btn btn-sm btn-outline-primary">
-                            Notering
                         </a>
                     </td>
                     <td class="text-end">

@@ -1,6 +1,140 @@
 När appen utveckla måstwe sass köras: 
 sass --watch static/scss:static/css --load-path=node_modules/bootstrap/scss --quiet-deps
 
+
+
+Då skulle exempelvis detta kunna bli kvar:
+
+
+HTML/Jinja beskriver UI:t. Alpine håller lokalt UI-state. HTMX pratar med Flask. Flask håller applikationslogiken. Vanlig JS används främst för bibliotek som TomSelect, MathJax och Bootstrap.
+
+common.js
+├── TomSelect-integration
+├── Markdown/MathJax
+├── Bootstrap/HTMX integration
+├── media selection
+└── några få biblioteksspecifika funktioner
+
+Medan sådant som:
+
+elevgrupper
+taggbadges
+checkbox-state
+filter-state
+frågetyp → vilka fält som visas
+knappar som aktiveras/inaktiveras
+enkla listor
+modalens lokala state
+
+flyttar närmare HTML med Alpine.
+
+a. Och jag tycker faktiskt att du ska sluta göra förbättringar i arkitekturen nu.
+
+Det du beskriver är egentligen tre återstående arbetsblock:
+
+Få huvudsidorna att fungera som ett sammanhängande flöde
+elever
+grupper/taggar
+frågor
+mallar
+uppgifter
+rättning/återkoppling
+statistik/XP
+Spelregler
+Gå tillbaka och snygga till UI:t med Alpine
+lokal state
+visa/dölj
+filter
+badges
+val
+små interaktioner
+minimera special-JS
+inte bygga om fungerande Flask/HTMX-flöden bara för sakens skull.
+Elevflödet
+Det är den sista större funktionella delen.
+Vi har redan fråge/svar-modellen.
+Vi har assignment → responses.
+Vi har statusar.
+Vi har XP/poängmodellen.
+Det som återstår är framför allt att bestämma hur eleven faktiskt arbetar genom systemet.
+
+Och där tycker jag att vi ska vara ganska disciplinerade.
+
+Jag skulle sätta en tydlig stoppregel
+
+Från och med nu:
+
+Ingen ny abstraktion, modell eller generell lösning om den inte behövs för att få ett konkret användarflöde att fungera.
+
+Exempelvis ska vi inte nu börja fundera på om ResponseType borde göras om, om PointRule behöver ytterligare en enum, eller om TomSelect borde ersättas. Det kan vänta.
+
+Och ja — Alpine
+
+Du har rätt i din invändning.
+
+Vi började med en arkitektur där du uttryckligen ville ha:
+
+Jinja → Alpine → HTMX → Flask
+
+och sedan har vi gradvis hamnat i ganska mycket:
+
+Jinja → HTMX → native JS → TomSelect → Bootstrap → Flask
+
+Det är inte fel tekniskt, men det går emot den riktning du ursprungligen ville ha.
+
+Så jag skulle ändra principen till:
+
+Native JS endast när ett externt bibliotek kräver det.
+
+TomSelect får alltså ha lite JS-glue. MathJax får ha JS. Bootstrap kan få den JS som verkligen behövs. Men saker som:
+
+"är knappen aktiverad?"
+"vilka badges ska visas?"
+"vilka elever är filtrerade?"
+"är detta element synligt?"
+"vilket val är gjort?"
+"öppna/stäng"
+"räkna valda"
+
+är precis sådant Alpine ska göra.
+
+Vi behöver inte konvertera 2 000 rader JS på en gång. Vi tar det när huvudsidorna fungerar.
+
+Elevdelen är däremot den stora frågan
+
+Där skulle jag vilja att vi tänker mer i elevens faktiska arbetsflöde än i modeller.
+
+Ungefär:
+
+Elev loggar in
+
+→ ser vad som finns att göra
+
+→ öppnar en uppgift
+
+→ arbetar med frågorna
+
+→ svar sparas löpande
+
+→ lämnar in
+
+→ uppgiften stängs enligt reglerna
+
+→ eleven får återkoppling/XP när det är relevant
+
+→ kan se tidigare arbete och sin progression.
+
+Det är där Spåren egentligen blir ett färdigt system.
+
+Och eftersom fråge/svar-strukturen och poängstrukturen redan finns, skulle jag inte börja med databasen. Jag skulle börja med att rita upp exakt:
+
+Vad ser eleven på varje sida och vad kan eleven göra där?
+
+När det är klart kan vi implementera det direkt mot det du redan har.
+
+Så ja: du är närmare slutet än vad mängden småproblem just nu får det att kännas som. Men det är dags att byta arbetsläge från "förbättra arkitekturen" till "slutför produkten".
+
+
 För att installera en sqlite db körs:
 flask create-db
 

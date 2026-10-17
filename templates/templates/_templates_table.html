@@ -18,16 +18,12 @@
                     Skapad
                     <i class="bi bi-chevron-expand ms-1"></i>
                 </th>
-                <th>
-                    Status
-                </th>
                 <th></th>
             </tr>
         </thead>
 
         <tbody>
         {% for template in templates %}
-            {% set locked = template_is_locked(template) %}
             <tr>
                 <td>
                     <div class="fw-semibold">
@@ -51,38 +47,47 @@
                 <td>
                     {{ template.created_at.strftime("%Y-%m-%d") }}
                 </td>
+                <td class="text-end">
+                    {% set action = template_action(template) %}
 
-                <td>
-                    {% if locked %}
-                        <span class="badge text-bg-secondary">
-                            Låst
-                        </span>
+                    {% if action == "locked" %}
+                        <a
+                            href="{{ url_for('templates.copy', template_id=template.id) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            Kopiera
+                        </a>
+
+                    {% elif action == "active" %}
+                        <a
+                            href="{{ url_for('templates.edit', template_id=template.id) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            Ändra
+                        </a>
+
                     {% else %}
-                        <span class="badge text-bg-success">
-                            Redigerbar
-                        </span>
+                        <a
+                            href="{{ url_for('templates.edit', template_id=template.id) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            Ändra
+                        </a>
+                        <form
+                            method="post"
+                            action="{{ url_for('templates.delete', template_id=template.id) }}"
+                            class="d-inline"
+                            onsubmit="return confirm('Är du säker på att du vill ta bort mallen?');">
+                            <button
+                                type="submit"
+                                class="btn btn-sm btn-outline-danger">
+                                Ta bort
+                            </button>
+                        </form>
                     {% endif %}
                 </td>
-
-                <td class="text-end">
-                    <a
-                        href="{{ url_for(
-                            'templates.edit',
-                            template_id=template.id
-                        ) }}"
-                        class="btn btn-sm btn-outline-primary">
-                        {% if locked %}
-                            Visa
-                        {% else %}
-                            Ändra
-                        {% endif %}
-                    </a>
-                </td>
-            </tr>
+            </tr>   
         {% else %}
             <tr>
                 <td
-                    colspan="7"
+                    colspan="5"
                     class="text-center text-muted py-4">
                     Inga mallar.
                 </td>

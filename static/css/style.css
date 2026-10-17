@@ -11904,6 +11904,10 @@ textarea.form-control-lg {
   border-bottom: 6px solid #187513;
 }
 
+[x-cloak] {
+  display: none !important;
+}
+
 .autocomplete-box {
   position: absolute;
   background: white;
@@ -11961,7 +11965,12 @@ textarea.form-control-lg {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
+}
+
+.archive-switch {
+  transform: scale(1.25);
 }
 
 .editable {
@@ -11979,6 +11988,22 @@ textarea.form-control-lg {
 
 .tag-input {
   min-width: 200px;
+}
+
+.question-tag-badges + .input-group .ts-control > .item {
+  display: none;
+}
+
+.media-tag-badges + .input-group .ts-control > .item {
+  display: none;
+}
+
+.question-tag-remove,
+.media-tag-remove {
+  width: 0.65rem;
+  height: 0.65rem;
+  padding: 0;
+  vertical-align: -0.1em;
 }
 
 .page-header {

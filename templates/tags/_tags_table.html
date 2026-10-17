@@ -5,7 +5,6 @@
             <col style="width: 20%">
             <col style="width: 10%">
             <col style="width: 10%">
-            <col style="width: 25%">
             <col style="width: 10%">
             <col style="width: 20%">
         </colgroup>
@@ -21,10 +20,6 @@
                 </th>
                 <th class="sortable">
                     Bilder
-                    <i class="bi bi-chevron-expand ms-1"></i>
-                </th>
-                <th class="sortable">
-                    Beskrivning
                     <i class="bi bi-chevron-expand ms-1"></i>
                 </th>
                 <th class="sortable">
@@ -45,9 +40,6 @@
                     </td>
                     <td>
                         {{ tag.media|length }}
-                    </td>
-                    <td>
-                        {{ tag.description or "" }}
                     </td>
                     <td>
                         {{ tag.tag_type.value }}

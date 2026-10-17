@@ -15,3 +15,24 @@
 .tag-input {
     min-width: 200px;
 }
+
+.question-tag-badges + .input-group {
+    .ts-control > .item {
+        display: none;
+    }
+}
+
+.media-tag-badges + .input-group {
+    .ts-control > .item {
+        display: none;
+    }
+}
+
+.question-tag-remove,
+.media-tag-remove {
+    width: 0.65rem;
+    height: 0.65rem;
+    padding: 0;
+    vertical-align: -0.1em;
+}
+

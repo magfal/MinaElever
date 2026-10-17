@@ -34,7 +34,7 @@
                     form="questionForm"
                     class="btn btn-primary"
                     {% if question_is_locked %}disabled{% endif %}>
-                    Ändra fråga
+                    Spara fråga
                 </button>
             {% else %}
                 <button
@@ -52,10 +52,7 @@
         method="post"
         enctype="multipart/form-data"
         action="{% if question %}
-                    {{ url_for(
-                        'questions.update_question',
-                        question_id=question.id
-                    ) }}
+                    {{ url_for('questions.update_question', question_id=question.id) }}
                 {% else %}
                     {{ url_for('questions.create_question') }}
                 {% endif %}">
@@ -102,112 +99,76 @@
                     Taggar
                 </h5>
             </div>
+
             <div class="card-body">
-                <div class="row g-3">
-                    <!-- ÄMNE -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label
-                            for="subjectTags"
-                            class="form-label">
-                            Ämne
-                        </label>
-                        <select
-                            id="subjectTags"
-                            name="subject_tag_ids"
-                            class="form-select tomselect-create"
-                            multiple>
-                            {% for tag in tags %}
-                                {% if tag.tag_type.name == "SUBJECT" %}
+                    <div
+                        id="questionTagBadges"
+                        class="question-tag-badges mb-3">
+
+                        {% if question %}
+                            {% for tag in question.tags %}
+                                <span
+                                    class="badge me-1
+                                    {% if tag.tag_type.name == 'SUBJECT' %}
+                                        text-bg-primary
+                                    {% elif tag.tag_type.name == 'AREA' %}
+                                        text-bg-secondary
+                                    {% elif tag.tag_type.name == 'DECK' %}
+                                        text-bg-info
+                                    {% elif tag.tag_type.name == 'OTHER' %}
+                                        text-bg-dark
+                                    {% else %}
+                                        text-bg-light
+                                    {% endif %}"
+                                    data-tag-id="{{ tag.id }}">
+
+                                    {{ tag.name }}
+
+                                    <button
+                                        type="button"
+                                        class="btn-close btn-close-white ms-1 question-tag-remove"
+                                        aria-label="Ta bort taggen {{ tag.name }}"
+                                        data-tag-id="{{ tag.id }}">
+                                    </button>
+
+                                </span>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+
+                <div class="input-group">
+
+                    <select
+                        id="questionTags"
+                        name="tag_ids"
+                        class="form-select tomselect-filter"
+                        multiple>
+                        {% for tag_type in tag_types %}
+                            <optgroup label="{{ tag_type.value }}">
+                                {% for tag in tags
+                                    if tag.tag_type == tag_type %}
                                     <option
                                         value="{{ tag.id }}"
+                                        data-tag-type="{{ tag.tag_type.name }}"
                                         {% if question
                                             and tag in question.tags %}
                                             selected
                                         {% endif %}>
                                         {{ tag.name }}
                                     </option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <!-- OMRÅDE -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label
-                            for="areaTags"
-                            class="form-label">
-                            Område
-                        </label>
-                        <select
-                            id="areaTags"
-                            name="area_tag_ids"
-                            class="form-select tomselect-create"
-                            multiple>
-                            {% for tag in tags %}
-                                {% if tag.tag_type.name == "AREA" %}
-                                    <option
-                                        value="{{ tag.id }}"
-                                        {% if question
-                                            and tag in question.tags %}
-                                            selected
-                                        {% endif %}>
-                                        {{ tag.name }}
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <!-- KORTLEK -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label
-                            for="deckTags"
-                            class="form-label">
-                            Kortlek
-                        </label>
-                        <select
-                            id="deckTags"
-                            name="deck_tag_ids"
-                            class="form-select tomselect-create"
-                            multiple>
-                            {% for tag in tags %}
-                                {% if tag.tag_type.name == "DECK" %}
-                                    <option
-                                        value="{{ tag.id }}"
-                                        {% if question
-                                            and tag in question.tags %}
-                                            selected
-                                        {% endif %}>
-                                        {{ tag.name }}
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <!-- ALLMÄN -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label
-                            for="otherTags"
-                            class="form-label">
-                            Allmän
-                        </label>
-                        <select
-                            id="otherTags"
-                            name="other_tag_ids"
-                            class="form-select tomselect-create"
-                            multiple>
-                            {% for tag in tags %}
-                                {% if tag.tag_type.name == "OTHER" %}
-                                    <option
-                                        value="{{ tag.id }}"
-                                        {% if question
-                                            and tag in question.tags %}
-                                            selected
-                                        {% endif %}>
-                                        {{ tag.name }}
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
+                                {% endfor %}
+                            </optgroup>
+                        {% endfor %}
+                    </select>
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        id="addQuestionTagBtn"
+                        data-url="{{ url_for('tags.create_question_tag_modal') }}"
+                        disabled>
+                        Lägg till
+                    </button>
                 </div>
             </div>
         </div>
@@ -245,10 +206,17 @@
                             name="tag_ids"
                             class="form-select tomselect-filter"
                             multiple>
-                            {% for tag in media_tags %}
-                                <option value="{{ tag.id }}">
-                                    {{ tag.name }}
-                                </option>
+                            {% for tag_type in tag_types %}
+                                <optgroup label="{{ tag_type.value }}">
+                                    {% for tag in tags
+                                        if tag.tag_type == tag_type %}
+                                        <option
+                                            value="{{ tag.id }}"
+                                            data-tag-type="{{ tag.tag_type.name }}">
+                                            {{ tag.name }}
+                                        </option>
+                                    {% endfor %}
+                                </optgroup>
                             {% endfor %}
                         </select>
                     </div>
@@ -321,6 +289,19 @@
             </div>
         </div>
     </form>
+</div>
+<div
+    class="modal fade"
+    id="questionTagModal"
+    tabindex="-1"
+    aria-hidden="true">
+
+    <div class="modal-dialog modal-sm">
+        <div
+            class="modal-content"
+            id="questionTagModalContent">
+        </div>
+    </div>
 </div>
 {% endblock %}
 

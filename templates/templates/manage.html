@@ -1,81 +1,71 @@
 {% extends "base.html" %}
-
-{% block title %}
-    Hantera mallar
-{% endblock %}
-
 {% block content %}
 <div class="container-fluid px-3 py-3">
-
-    <!-- SIDHUVUD -->
+    <!-- SIDHUVUD (<a> länkar till ny sida) -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">
-            Hantera mallar
-        </h2>
-
+        <h2 class="mb-0">Hantera mallar</h2>
         <a
-            href="{{ url_for('templates.new') }}"
-            class="btn btn-primary">
+            class="btn btn-primary"
+            href="{{ url_for('templates.new') }}">
             Lägg till mall
         </a>
     </div>
-
-    <!-- FILTER -->
+    <!-- SÖKFILTER -->
     <form
-        class="row g-3 mb-4"
+        class="row g-3 mb-3"
+        method="get"
         hx-get="{{ url_for('templates.manage') }}"
-        hx-trigger="input changed delay:400ms, change"
         hx-target="#templatesTable"
+        hx-swap="innerHTML"
+        hx-trigger="
+            change from:select,
+            change from:input[type=date],
+            keyup changed from:#search-input delay:250ms
+        "
         hx-push-url="true">
-
-        <div class="col-12 col-md-6">
-            <label
-                for="templateSearch"
-                class="form-label">
-                Sök
-            </label>
-
-            <input
-                type="search"
-                id="templateSearch"
-                name="search"
-                value="{{ search }}"
-                class="form-control"
-                placeholder="Sök mall...">
-        </div>
-
+        <!-- Sök -->
         <div class="col-12 col-md-4">
             <label
-                for="assignmentType"
+                for="search-input"
                 class="form-label">
-                Typ
+                Sök mallar
             </label>
-
-            <select
-                id="assignmentType"
-                name="template_type"
-                class="form-select">
-
-                <option value="">
-                    Alla typer
-                </option>
-
-                {% for template_type in template_types %}
-                    <option
-                        value="{{ template_type.name }}"
-                        {% if template_type_name == template_type.name %}
-                            selected
-                        {% endif %}>
-                        {{ template_type.value }}
-                    </option>
-                {% endfor %}
-            </select>
+            <input
+                class="form-control"    
+                id="search-input"
+                type="search"
+                name="search"
+                value="{{ request.args.get('search', '') }}"
+                placeholder="...">
+        </div>
+        <!-- Tid (från) -->
+        <div class="col-12 col-md-2 ms-md-auto">
+            <label for="dateFrom" class="form-label">
+                Från
+            </label>
+            <input
+                type="date"
+                id="dateFrom"
+                name="date_from"
+                class="form-control"
+                value="{{ date_from  }}">
+        </div>
+        <!-- Tid (till) -->
+        <div class="col-16 col-md-2">
+            <label for="dateTo" class="form-label">
+                Till
+            </label>
+            <input
+                type="date"
+                id="dateTo"
+                name="date_to"
+                class="form-control"
+                value="{{ date_to }}">
         </div>
     </form>
     <!-- TABELL -->
     <div id="templatesTable">
         {% include "templates/_templates_table.html" %}
     </div>
-
 </div>
 {% endblock %}

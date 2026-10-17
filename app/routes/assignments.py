@@ -1,7 +1,7 @@
 from flask import Blueprint
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from flask import render_template, request, redirect, url_for, flash, g, abort
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from app.extensions import db
 from app.models import Template, Assignment, AssignmentType, Student, Group, Team, Response, ResponseStatus, ResponseType, ResponseSource
@@ -56,39 +56,78 @@ def update_assignment_response_status(student_id):
 def manage():
     search = request.args.get("search", "").strip()
     status = request.args.get("status", "").strip()
-    template_id = request.args.get("template_id", type=int)
+    date_from = request.args.get("date_from", "")
+    date_to = request.args.get("date_to", "")
+    assignment_type = request.args.get("assignment_type", "").strip()
+
     query = (
         select(Assignment)
+        .join(Assignment.template)
         .options(
             selectinload(Assignment.template),
         )
-        .order_by(
-            Assignment.start_time.desc()
-        )
     )
+
+    # Sökning
     if search:
-        query = query.join(
-            Assignment.template
-        ).where(
-            Template.title.ilike(
-                f"%{search}%"
+        query = query.where(
+            or_(
+                Template.title.ilike(f"%{search}%"),
+                Assignment.label.ilike(f"%{search}%"),
             )
         )
-    if template_id:
+
+    # Uppgiftstyp
+    if assignment_type:
+        try:
+            assignment_type_enum = AssignmentType[assignment_type]
+        except KeyError:
+            assignment_type_enum = None
+
+        if assignment_type_enum is not None:
+            query = query.where(
+                Assignment.assignment_type == assignment_type_enum
+            )
+
+    # Från datum
+    if date_from:
+        try:
+            date_from = date.fromisoformat(date_from)
+        except ValueError:
+            date_from = None
+
+    if date_from:
         query = query.where(
-            Assignment.template_id == template_id
+            Assignment.created_at >= date_from
         )
+
+    # Till datum
+    if date_to:
+        try:
+            date_to = date.fromisoformat(date_to)
+        except ValueError:
+            date_to = None
+
+    if date_to:
+        query = query.where(
+            Assignment.created_at < date_to + timedelta(days=1)
+        )
+
+    query = query.order_by(
+        Assignment.start_time.desc()
+    )
+
     assignments = db.session.scalars(query).all()
-    # Filtrera status efter att objekten hämtats.
+
+    # Status filtreras efter att objekten hämtats,
+    # eftersom assignment_status() beräknas i Python.
     if status:
         assignments = [
-            assignment 
-            for assignment in assignments 
-            if assignment_status(assignment) == status]
-    templates = db.session.scalars(
-        select(Template)
-        .order_by(Template.title)
-    ).all()
+            assignment
+            for assignment in assignments
+            if assignment_status(assignment) == status
+        ]
+
     if request.headers.get("HX-Request"):
         return render_template(
             "assignments/_assignments_table.html",
@@ -96,15 +135,18 @@ def manage():
             assignment_status=assignment_status,
             sweden_tz=SWEDEN_TZ,
         )
+
     return render_template(
         "assignments/manage.html",
         assignments=assignments,
-        templates=templates,
+        assignment_types=list(AssignmentType),
         search=search,
         status=status,
-        template_id=template_id,
+        assignment_type=assignment_type,
         assignment_status=assignment_status,
         sweden_tz=SWEDEN_TZ,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 @assignments_bp.get("/new")
@@ -477,4 +519,16 @@ def start(assignment_id):
             "assignments.edit",
             assignment_id=assignment.id,
         )
+    )
+
+@assignments_bp.get("/<int:assignment_id>/afterwork")
+def afterwork(assignment_id):
+    assignment = db.session.get(Assignment, assignment_id)
+
+    if assignment is None:
+        abort(404)
+
+    return render_template(
+        "assignments/afterwork.html",
+        assignment=assignment,
     )

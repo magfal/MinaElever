@@ -1,41 +1,54 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid px-4 py-3">
-<!-- SIDHUVUD -->
-    <div class="d-flex justify-content-between align-items-center">
+<!-- SIDHUVUD (<a> länkar till ny sida)--> 
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Hantera elever</h2>
-        <div class="d-flex gap-2">
             <a
                 href="{{ url_for('students.add') }}"
                 class="btn btn-primary">
                 Nya elever
             </a>
     </div>
-</div>
-<!-- SÖKFILTER FÖR STUDENTTABELL -->
-<div class="row mb-3">
+    <!-- SÖKFILTER -->
     <form 
+        class="row g-3 mb-3"  
+        method="get"  
         hx-get="{{ url_for('students.manage') }}"
         hx-target="#studentsTable"
         hx-swap="innerHTML"
-        hx-trigger="change, keyup changed delay:200ms"
+        hx-trigger="
+            change from:select,
+                change from:select,
+                change from:#archived,
+            keyup changed from:#search-input delay:250ms
+        "
         hx-push-url="true"
-        class="row g-3">
-        <div class="col-12 col-md-5">
-            <label class="form-label">Sök elev</label>
+        >
+        <!-- Sök -->
+        <div class="col-12 col-md-4">
+            <label 
+                class="form-label">
+                Sök elev
+            </label>
             <input
                 class="form-control"
+                id="search-input"
                 type="search"
                 name="search"
                 value="{{ request.args.get('search', '') }}"
-                placeholder="Skriv namn...">
+                placeholder="...">
         </div>
         <div class="col-12 col-md-3">
-            <label class="form-label">Klasser</label>
+            <label class="form-label">
+                Klasser
+            </label>
             <select 
                 class="form-select" 
                 name="group_id">
-                <option value="">Alla klasser</option>
+                <option value="">
+                    Alla klasser
+                </option>
                 {% for group in groups %}
                     <option 
                         value="{{ group.id }}"
@@ -66,31 +79,34 @@
             </select>
         </div>
         <div class="col-12 col-md-1">
-            <label class="form-label d-block">
-                Arkiverade
+            <label
+                class="form-label text-nowrap"
+                for="archived">
+                Visa arkiverade
             </label>
-            <div class="form-check d-flex justify-content-center">
+            <div class="form-check form-switch d-flex justify-content-center align-items-center" style="height: 38px;">
                 <input
-                    class="form-check-input"
+                    class="form-check-input archive-switch"
                     type="checkbox"
-                    name="include_inactive"
-                    value="true"
-                    id="includeInactive"
-                    {% if request.args.get('include_inactive') %}
-                        checked
-                    {% endif %}>
+                    role="switch"
+                    name="archived"
+                    id="archived"
+                    value="1"
+                    {% if archived %}checked{% endif %}>
             </div>
         </div>
+        </div>
     </form>
-</div>
-<!-- TABELL --> 
-<div class="card mb-4">
-    <div class="card-body p-0" id="studentsTable">
-        {% include "students/_students_table.html" %}
+
+    <!-- TABELL --> 
+    <div class="card mb-4">
+        <div class="card-body p-0" id="studentsTable">
+            {% include "students/_students_table.html" %}
+        </div>
     </div>
-</div>
     <!--Popup-fönster (modaler)-->
     {% include "students/_student_modal.html" %}
+</div>
 {% endblock %}
 
 {% block scripts %}

@@ -11,16 +11,11 @@ groups_bp = Blueprint("groups", __name__, url_prefix="/groups")
 @groups_bp.get("/manage")
 @teacher_required
 def manage():
+    show_archived = request.args.get("archived") == "1"
     groups = db.session.scalars(
         select(Group)
-        .where(Group.is_active == True)
-        .where(Group.author_id == g.user.id)
-        .order_by(Group.name)
-    ).all()
-    archived_groups = db.session.scalars(
-        select(Group)
-        .where(Group.is_active == False)
-        .where(Group.author_id == g.user.id)
+        .where(Group.is_active.is_(not show_archived))
+        .where(Group.teachers.any(id=g.user.id))
         .order_by(Group.name)
     ).all()
     teams = db.session.scalars(
@@ -28,11 +23,16 @@ def manage():
         .where(Team.author_id == g.user.id)
         .order_by(Team.name)
     ).all()
+    if request.headers.get("HX-Request"):
+        return render_template(
+            "groups/_groups_table.html",
+            groups=groups
+        )
     return render_template(
         "groups/manage.html",
         groups=groups,
-        archived_groups=archived_groups,
-        teams=teams
+        teams=teams,
+        archived=show_archived
     )
 
 @groups_bp.get("/create_group")
@@ -66,12 +66,14 @@ def create_group():
                 response = make_response("")
                 toast(response, f"Klassen {name} finns redan.", "warning", reswap="none")
                 return response
-            db.session.add(
-                Group(
-                    author_id=g.user.id,
-                    name=name,
-                    is_active=not archived))
-        db.session.commit()
+            group = Group(
+                name=name,
+                author_id=g.user.id,
+                is_active=not archived
+                )
+            group.teachers.append(g.user)
+            db.session.add(group)
+        db.session.commit() 
     except IntegrityError:
         db.session.rollback()
         response = make_response("")
@@ -85,7 +87,7 @@ def create_group():
     groups = db.session.scalars(
         select(Group)
         .where(Group.is_active == True)
-        .where(Group.author_id == g.user.id)
+        .where(Group.teachers.any(id=g.user.id))
         .order_by(Group.name)
         ).all()
     response = make_response(render_template(
@@ -98,6 +100,8 @@ def create_group():
 @teacher_required
 def edit_group_modal(group_id):
     group = db.session.get(Group, group_id)
+    if not group or group.author_id != g.user.id:
+        abort(404)
     if not group:
         response = make_response("")
         toast(response,f"Klassen hittades inte.", "warning")
@@ -119,6 +123,8 @@ def edit_group(group_id):
         toast(response, "Namnet får inte var tomt", "warning", reswap="none")
         return response
     group = db.session.get(Group, group_id)
+    if not group or group.author_id != g.user.id:
+        abort(404)
     if not group:
         response = make_response("")
         toast(response,f"Klassen finns inte i databasen.", "warning")
@@ -129,14 +135,25 @@ def edit_group(group_id):
         group.name = name
         group.is_active = not archived
         if old_is_active != group.is_active:
-            if group.is_active == True:
+            if group.is_active:
                 for student in group.students:
                     student.login_code = generate_code()
                     student.is_active = True
+
             else:
+                teams_to_check = {
+                    team
+                    for student in group.students
+                    for team in student.teams
+                }
+
                 for student in group.students:
                     logout_everywhere(student.id)
                     student.is_active = False
+
+                for team in teams_to_check:
+                    if not any(student.is_active for student in team.students):
+                        db.session.delete(team)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -198,7 +215,10 @@ def create_team():
             team_names.append((name.strip(), description.strip()))
         else:
             team_names.append((line, ""))
-    existing_names = db.session.scalars(select(Team.name)).all()
+    existing_names = db.session.scalars(
+        select(Team.name)
+        .where(Team.author_id == g.user.id)
+    ).all()
     try:
         for (name, description) in team_names:
             if name in existing_names:
@@ -253,6 +273,8 @@ def edit_team(team_id):
         toast(response, "Namnet får inte var tomt", "warning", reswap="none")
         return response
     team = db.session.get(Team, team_id)
+    if not team or team.author_id != g.user.id:
+        abort(404)
     if not team:
         response = make_response("")
         toast(response,f"Gruppen finns inte i databasen.", "warning")
@@ -269,6 +291,7 @@ def edit_team(team_id):
         return response        
     teams = db.session.scalars(
         select(Team)
+        .where(Team.author_id == g.user.id)
         .order_by(Team.name)
         ).all()
     response = make_response(render_template(
@@ -280,16 +303,15 @@ def edit_team(team_id):
 @groups_bp.post("/delete_team/<int:team_id>")
 @teacher_required
 def delete_team(team_id):
-    team = db.session.get(
-        Team,
-        team_id
-    )
+    team = db.session.get(Team,team_id)    
     if not team:
         flash("Gruppen hittades inte.", "danger")
         return redirect(url_for("groups.manage"))
+    if team.author_id != g.user.id:
+        abort(404)
     if len(team.students) > 0:
         flash("En grupp med elever kan inte tas bort permanent.", "danger")
-        return redirect(url_for("groups.manage_teams"))
+        return redirect(url_for("groups.manage"))
     db.session.delete(team)
     db.session.commit()
     flash(f"Klassen {team.name} togs bort permanent.", "success")
@@ -299,21 +321,40 @@ def delete_team(team_id):
 @teacher_required
 def list_modal(entity_type, entity_id):
     if entity_type == "group":
-        entity = db.get_or_404(Group, entity_id)
+        entity = db.session.scalar(
+            select(Group)
+            .where(
+                Group.id == entity_id,
+                Group.teachers.any(id=g.user.id)
+            )
+        )
+
     elif entity_type == "team":
-        entity = db.get_or_404(Team, entity_id)
+        entity = db.session.scalar(
+            select(Team)
+            .where(
+                Team.id == entity_id,
+                Team.author_id == g.user.id
+            )
+        )
+
     else:
         abort(404)
-    
+
+    if not entity:
+        abort(404)
+
     students = sorted(
         entity.students,
         key=lambda student: student.name.lower()
     )
+
     print_url = url_for(
         "groups.list_print",
         entity_type=entity_type,
         entity_id=entity.id
-        )
+    )
+
     return render_template(
         "groups/_list_modal.html",
         student_group=entity,

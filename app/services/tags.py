@@ -14,47 +14,16 @@ def get_or_create_tag(tag_name):
         db.session.commit()
     return tag
 
-
 def get_selected_tags():
-    tag_groups = {
-        TagType.SUBJECT: request.form.getlist("subject_tag_ids"),
-        TagType.AREA: request.form.getlist("area_tag_ids"),
-        TagType.DECK: request.form.getlist("deck_tag_ids"),
-        TagType.OTHER: request.form.getlist("other_tag_ids"),
-    }
-
+    tag_ids = request.form.getlist("tag_ids")
     selected_tags = []
-
-    for tag_type, values in tag_groups.items():
-        for value in values:
-            value = value.strip()
-
-            if not value:
-                continue
-
-            # Befintlig tagg
-            if value.isdigit():
-                tag = db.session.get(Tag, int(value))
-
-                if tag is not None:
-                    selected_tags.append(tag)
-
-                continue
-
-            # Ny tagg
-            tag = db.session.scalar(
-                select(Tag).where(Tag.name == value)
-            )
-
-            if tag is None:
-                tag = Tag(
-                    name=value,
-                    tag_type=tag_type
-                )
-                db.session.add(tag)
-
+    for value in tag_ids:
+        value = value.strip()
+        if not value or not value.isdigit():
+            continue
+        tag = db.session.get(Tag, int(value))
+        if tag is not None:
             selected_tags.append(tag)
-
     return selected_tags
 
 def get_selected_media_tags():

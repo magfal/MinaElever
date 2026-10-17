@@ -1,7 +1,7 @@
 import json
 from flask import Blueprint
 from flask import render_template, request, redirect, url_for, flash, make_response
-from sqlalchemy import select
+from sqlalchemy import select, case
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import Tag, TagType
@@ -13,6 +13,7 @@ tags_bp = Blueprint("tags", __name__, url_prefix="/tags")
 @tags_bp.get("/manage")
 @teacher_required
 def manage():
+    search = request.args.get("search", "").strip()
     tag_type_name = request.args.get("tag_type", "").strip()
     query = select(Tag)
     if tag_type_name:
@@ -24,6 +25,30 @@ def manage():
             query = query.where(
                 Tag.tag_type == tag_type
             )
+    if search:
+        terms = [
+            term.strip()
+            for term in search.split()
+            if len(term.strip()) >= 2
+            ]
+        if terms:
+            score = sum(
+                case(
+                    (Tag.name.ilike(f"%{term}%"), 1),
+                    else_=0,
+                )
+                for term in terms
+            )
+            query = (
+                query
+                .where(score > 0)
+                .order_by(score.desc())
+                .limit(100)
+            )
+        else:
+            query = query.limit(100)
+    else:
+        query = query.order_by(Tag.name.desc()).limit(100)    
     tags = db.session.scalars(query).all()
     if request.headers.get("HX-Request"):
         return render_template(
@@ -280,6 +305,82 @@ def create_media_tag():
     response = make_response("")
     response.headers["HX-Trigger"] = json.dumps({
         "media-tag-created": {
+            "id": tag.id,
+            "name": tag.name,
+            "tag_type": tag.tag_type.name,
+        }
+    })
+
+    return response
+
+@tags_bp.get("/create_question_tag")
+@teacher_required
+def create_question_tag_modal():
+
+    name = request.args.get("name", "").strip()
+
+    return render_template(
+        "tags/_question_tag_new_form.html",
+        name=name,
+        tag_types=list(TagType),
+    )
+
+@tags_bp.post("/create_question_tag")
+@teacher_required
+def create_question_tag():
+
+    name = request.form.get("name", "").strip()
+    description = request.form.get("description", "").strip()
+    tag_type_name = request.form.get("tag_type", "").strip()
+
+    if not name:
+        response = make_response("")
+        toast(
+            response,
+            "Namnet får inte vara tomt.",
+            "warning",
+            reswap="none",
+        )
+        return response
+
+    try:
+        tag_type = TagType[tag_type_name]
+    except KeyError:
+        response = make_response("")
+        toast(
+            response,
+            "Ogiltig taggtyp.",
+            "warning",
+            reswap="none",
+        )
+        return response
+
+    existing = db.session.scalar(
+        select(Tag).where(Tag.name == name)
+    )
+
+    if existing is not None:
+        response = make_response("")
+        toast(
+            response,
+            f"Taggen {name} finns redan.",
+            "warning",
+            reswap="none",
+        )
+        return response
+
+    tag = Tag(
+        name=name,
+        description=description,
+        tag_type=tag_type,
+    )
+
+    db.session.add(tag)
+    db.session.commit()
+
+    response = make_response("")
+    response.headers["HX-Trigger"] = json.dumps({
+        "question-tag-created": {
             "id": tag.id,
             "name": tag.name,
             "tag_type": tag.tag_type.name,

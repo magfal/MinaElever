@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid px-4 py-3">
-    <!-- Header -->
+    <!-- SIDHUVUD <button> öppnar modal -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">Hantera klasser och grupper</h2>
         <div class="d-flex gap-2" id="manageGroups">
@@ -25,16 +25,40 @@
             </button>
         </div>
     </div>
-    <div class="card mb-4">
-        <div class="card-header">
+    <!-- Klasser -->
+    <div class="card g-3 mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 Klasser
             </h5>
+
+<div class="form-check form-switch mb-0">
+    <input
+        class="form-check-input"
+        type="checkbox"
+        role="switch"
+        id="archivedGroups"
+        name="archived"
+        value="1"
+        {% if archived %}checked{% endif %}
+        hx-get="{{ url_for('groups.manage') }}"
+        hx-trigger="change"
+        hx-target="#groupsTable"
+        hx-swap="innerHTML"
+        hx-push-url="true">
+
+    <label
+        class="form-check-label"
+        for="archivedGroups">
+        Visa arkiverade
+    </label>
+</div>
         </div>
         <div class="card-body p-0" id="groupsTable">
             {% include "groups/_groups_table.html" %}
         </div>
     </div>
+    <!-- Grupper -->
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="mb-0">
@@ -43,16 +67,6 @@
         </div>
         <div class="card-body p-0" id="teamsTable">
             {% include "groups/_teams_table.html" %}
-        </div>
-    </div>
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">
-                Arkiverade klasser
-            </h5>
-        </div>
-        <div class="card-body p-0" id="archivedGroupsTable">
-            {% include "groups/_archived_groups_table.html" %}
         </div>
     </div>
 </div>

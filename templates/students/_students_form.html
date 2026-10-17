@@ -1,132 +1,202 @@
 <form
-    data-modal-close
     id="studentsForm"
+    data-modal-close
     hx-post="{{ action }}"
     hx-target="#studentsTable"
     hx-swap="innerHTML">
-    {% for student in students %}
-        <input 
-            type="hidden"
-            name="student_ids"
-            value="{{ student.id }}">
-    {% endfor %}
+
     <div class="modal-header">
+
         <h5 class="modal-title">
             Ändra {{ students|length }} elever
         </h5>
+
         <button
             type="button"
             class="btn-close"
             data-bs-dismiss="modal">
         </button>
+
     </div>
+
+
     <div class="modal-body">
+
+        {# ------------------------------------------------- #}
+        {# Valda elever                                      #}
+        {# ------------------------------------------------- #}
+
+        {% for student in students %}
+            <input
+                type="hidden"
+                name="student_ids"
+                value="{{ student.id }}">
+        {% endfor %}
+
+
+        {# ------------------------------------------------- #}
+        {# Klass                                              #}
+        {# ------------------------------------------------- #}
+
         <div class="mb-3">
-            <label class="form-label">
+
+            <label
+                class="form-label"
+                for="studentGroup">
+
                 Klass
+
             </label>
+
             <select
                 class="form-select"
+                id="studentGroup"
                 name="group_id">
+
                 <option value="">
-                    Behåll nuvarande
+                    Ingen ändring
                 </option>
+
                 {% for group in groups %}
+
                     <option value="{{ group.id }}">
                         {{ group.name }}
                     </option>
+
                 {% endfor %}
+
             </select>
+
         </div>
+
+
+        {# ------------------------------------------------- #}
+        {# Grupper                                             #}
+        {# ------------------------------------------------- #}
+
         <div class="mb-3">
-            <label class="form-label">Nuvarande grupptillhörigheter</label>
-            <div id="studentTeams">
-                {% for team in current_teams %}
-                    <button
-                        type="button"
-                        class="badge text-bg-primary border-0"
-                        hx-post="{{ url_for('students.edit_students') }}"
-                        hx-target="#studentModalContent"
-                        hx-swap="innerHTML"
-                        hx-include="#studentsForm"
-                        hx-vals='{
-                            "action": "remove_team",
-                            "team_id": "{{ team.id }}"
-                        }'>
-                        {{ team.name }} ×
-                    </button>
-                {% endfor %}
-                {% for team in current_teams %}
-                    <input
-                        type="hidden"
-                        name="team_ids"
-                        value="{{ team.id }}">
-                {% endfor %}
-            </div>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Lägg till grupp (ev. förklaring efter kommatecken)</label>
-            <div class="input-group">
-                <select
-                    class="form-select tomselect-create"
-                    name="team">
-                    <option value=""></option>
-                    {% for team in teams %}
-                        <option value="{{ team.id }}">
-                            {{ team.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-                <button
-                    type="button"
-                    class="btn btn-outline-primary add-tomselect-btn"
-                    hx-post="{{ url_for('students.edit_students') }}"
-                    hx-target="#studentModalContent"
-                    hx-swap="innerHTML"
-                    hx-include="#studentsForm"
-                    hx-vals='{
-                        "action": "add_team"
-                    }'>
-                    +
-                </button>
-            </div>
-        </div>
-        <div class="form-check form-switch mb-3">
-            <input
-                class="form-check-input"
-                type="checkbox"
-                name="new_code"
-                id="newCode">
+
             <label
-                class="form-check-label"
-                for="newCode">
-                Generera nya koder
+                class="form-label"
+                for="studentTeams">
+
+                Elevernas grupper
+
             </label>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">
-                Aktivitet
-            </label>
+
+
             <select
-                class="form-select"
-                name="active_action">
-                <option value="">
-                    Behåll nuvarande
-                </option>
-                <option value="activate">
-                    Aktivera
-                </option>
-                <option value="deactivate">
-                    Arkivera
-                </option>
+                id="studentTeams"
+                name="team_ids"
+                class="form-select tomselect-filter"
+                multiple>
+
+                {% for team in teams %}
+
+                    <option
+                        value="{{ team.id }}"
+                        {% if team in common_teams %}
+                            selected
+                        {% endif %}>
+
+                        {{ team.name }}
+
+                    </option>
+
+                {% endfor %}
+
             </select>
+
+
+            {# Ursprungliga gemensamma grupper #}
+
+            {% for team in common_teams %}
+
+                <input
+                    type="hidden"
+                    name="original_team_ids"
+                    value="{{ team.id }}">
+
+            {% endfor %}
+
+
+            <div class="form-text">
+                Endast grupper som alla valda elever har är
+                markerade från början. Grupper som bara vissa
+                elever har påverkas inte.
+            </div>
+
         </div>
+
+
+        {# ------------------------------------------------- #}
+        {# Nya koder                                          #}
+        {# ------------------------------------------------- #}
+
+        <div class="mb-3">
+
+            <div class="form-check form-switch">
+
+                <label
+                    class="form-check-label"
+                    for="newCodes">
+
+                    Generera nya koder
+
+                </label>
+
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="newCodes"
+                    name="new_codes"
+                    value="1">
+
+            </div>
+
+        </div>
+
+
+        {# ------------------------------------------------- #}
+        {# Arkivera                                           #}
+        {# ------------------------------------------------- #}
+
+        <div class="mb-3">
+
+            <div class="form-check form-switch">
+
+                <label
+                    class="form-check-label"
+                    for="archive">
+
+                    Arkivera eleverna
+
+                </label>
+
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="archive"
+                    name="archive"
+                    value="1">
+
+            </div>
+
+        </div>
+
     </div>
+
+
     <div class="modal-footer">
+
         <button
             type="submit"
             class="btn btn-primary">
+
             Spara
+
         </button>
+
     </div>
+
 </form>

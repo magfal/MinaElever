@@ -59,15 +59,38 @@
                 {% else %}
                     <!-- ÄNDRA / TA BORT -->
                     <td class="text-end">
-                        <a
-                            href="{{ url_for(
-                                'questions.edit_question',
-                                question_id=question.id
-                            ) }}"
-                            class="btn btn-sm btn-outline-primary">
-                            Ändra
-                        </a>
-                        {% if not question.template_links and not question.responses %}
+                        {% set action = question_action(question) %}
+
+                        {% if action == "locked" %}
+                            <a
+                                href="{{ url_for(
+                                    'questions.copy_question',
+                                    question_id=question.id
+                                ) }}"
+                                class="btn btn-sm btn-outline-primary">
+                                Kopiera
+                            </a>
+
+                        {% elif action == "active" %}
+                            <a
+                                href="{{ url_for(
+                                    'questions.edit_question',
+                                    question_id=question.id
+                                ) }}"
+                                class="btn btn-sm btn-outline-primary">
+                                Ändra
+                            </a>
+
+                        {% else %}
+                            <a
+                                href="{{ url_for(
+                                    'questions.edit_question',
+                                    question_id=question.id
+                                ) }}"
+                                class="btn btn-sm btn-outline-primary">
+                                Ändra
+                            </a>
+
                             <form
                                 method="POST"
                                 action="{{ url_for(

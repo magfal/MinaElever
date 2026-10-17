@@ -113,6 +113,13 @@ student_team_link = Table(
     Column("student_id", ForeignKey("students.id"), primary_key=True),
 )
 
+teacher_group_link = Table(
+    "teacher_group_link",
+    Base.metadata,
+    Column("group_id", ForeignKey("groups.id"), primary_key=True),
+    Column("teacher_id", ForeignKey("teachers.id"), primary_key=True),
+)
+
 question_media_link = Table(
     "question_media_link",
     Base.metadata,
@@ -232,16 +239,19 @@ class Group(Base):
     #Relationer
     author: Mapped["User"] = relationship(back_populates="groups_created",foreign_keys=[author_id])
     students: Mapped[list["Student"]] = relationship(back_populates="group", foreign_keys="Student.group_id", order_by="Student.name")
+    teachers: Mapped[list["Teacher"]] = relationship(secondary=teacher_group_link, back_populates="groups")
 
 class Team(Base):
     __tablename__ = "teams"
     id: Mapped[int] = mapped_column(primary_key=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)    
-    name: Mapped[str] = mapped_column(String(50), unique=True)
+    name: Mapped[str] = mapped_column(String(50))
     description: Mapped[str | None] = mapped_column(String(120))
     # Relationer
     author: Mapped[User] = relationship(back_populates="teams_created", foreign_keys=[author_id])
     students: Mapped[list["Student"]] = relationship(secondary=student_team_link, back_populates="teams")
+    # Contraint
+    __table_args__ = (UniqueConstraint("author_id", "name", name="uq_team_author_name"),)
 
 class User(Base):
     __tablename__ = "users"
@@ -267,6 +277,8 @@ class Teacher(User):
     __tablename__ = "teachers"
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
+    # Relationer
+    groups: Mapped[list["Group"]] = relationship(secondary=teacher_group_link, back_populates="teachers")
     # Arv
     __mapper_args__ = {"polymorphic_identity": "teacher"}
 
@@ -364,7 +376,6 @@ class Tag(Base):
     __tablename__ = "tags"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True)
-    description: Mapped[str | None] = mapped_column(String(120))  # Ska bort
     tag_type: Mapped[TagType] = mapped_column(Enum(TagType), nullable=False)
     # Relationer
     questions: Mapped[list["Question"]] = relationship(secondary=question_tag_link, back_populates="tags")

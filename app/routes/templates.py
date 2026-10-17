@@ -1,10 +1,11 @@
+from datetime import date, timedelta
 from flask import Blueprint, render_template, request, g, abort, redirect, url_for, flash
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from app.extensions import db
 from app.models import Template, AssignmentType, Question, QuestionTemplateLink
-from app.services.utils import utc_now, utcify
 from app.services.auth import teacher_required
+from app.routes.assignments import assignment_status
 
 templates_bp = Blueprint(
     "templates",
@@ -13,19 +14,23 @@ templates_bp = Blueprint(
 )
 
 # HJÄLPFUNKTIONER
-def template_is_locked(template):
-    now = utc_now()
-    return any(
-        assignment.end_time is not None
-        and utcify(assignment.end_time) < now
+def template_action(template):
+    if not template.assignments:
+        return "new"
+    if any(
+        assignment_status(assignment) == "Avslutad"
         for assignment in template.assignments
-    )
+    ):
+        return "locked"
+    return "active"
 
 # Routes
 @templates_bp.get("/manage")
 @teacher_required
 def manage():
     search = request.args.get("search", "").strip()
+    date_from = request.args.get("date_from", "")
+    date_to = request.args.get("date_to", "")
     query = (
         select(Template)
         .options(
@@ -35,8 +40,32 @@ def manage():
     )
     if search:
         query = query.where(
-            Template.title.ilike(f"%{search}%")
+            or_(
+                Template.title.ilike(f"%{search}%"),
+                Template.description.ilike(f"%{search}%"),
+            )
         )
+    #Från datum
+    if date_from:
+        try:
+            date_from = date.fromisoformat(date_from)
+        except ValueError:
+            date_from = None
+    if date_from:
+        query = query.where(
+            Template.created_at >= date_from
+        )
+    # Till datum
+    if date_to:
+        try:
+            date_to = date.fromisoformat(date_to)
+        except ValueError:
+            date_to = None
+    if date_to:
+        query = query.where(
+                Template.created_at
+                < date_to + timedelta(days=1)
+            )
     query = query.order_by(
         Template.created_at.desc()
     )
@@ -45,14 +74,17 @@ def manage():
         return render_template(
             "templates/_templates_table.html",
             templates=templates,
-            template_is_locked=template_is_locked,
+            template_action=template_action,
         )
+
     return render_template(
         "templates/manage.html",
         templates=templates,
         template_types=list(AssignmentType),
         search=search,
-        template_is_locked=template_is_locked,
+        template_action=template_action,
+        date_from=date_from,
+        date_to=date_to
     )
 
 @templates_bp.get("/new")
@@ -136,22 +168,24 @@ def create():
 @teacher_required
 def edit(template_id):
     template = db.session.get(Template, template_id)
+
     if template is None:
         abort(404)
+
     questions = db.session.scalars(
         select(Question)
         .order_by(Question.created_at.desc())
     ).all()
+
     selected_question_ids = {
         link.question_id
         for link in template.question_links
     }
+
     return render_template(
         "templates/new.html",
         template=template,
-        template_types=list(AssignmentType),
         questions=questions,
-        template_is_locked=template_is_locked(template),
         table_mode="template",
         selected_question_ids=selected_question_ids,
     )
@@ -163,12 +197,16 @@ def update(template_id):
         Template,
         template_id,
     )
+
     if template is None:
         abort(404)
-    if template_is_locked(template):
+
+    if template_action(template) == "locked":
         abort(403)
+
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
+
     if not title:
         flash(
             "Mallen måste ha en titel.",
@@ -180,19 +218,25 @@ def update(template_id):
                 template_id=template.id,
             )
         )
+
     template.title = title
     template.description = description or None
+
     question_ids = request.form.getlist(
         "question_ids"
     )
+
     selected_questions = []
+
     for question_id in question_ids:
         question = db.session.get(
             Question,
             int(question_id),
         )
+
         if question is None:
             continue
+
         try:
             order_index = int(
                 request.form.get(
@@ -202,13 +246,17 @@ def update(template_id):
             )
         except ValueError:
             order_index = 999999
+
         selected_questions.append(
             (order_index, question)
         )
+
     selected_questions.sort(
         key=lambda item: item[0]
     )
+
     template.question_links.clear()
+
     for order_index, question in enumerate(
         question for _, question in selected_questions
     ):
@@ -223,11 +271,14 @@ def update(template_id):
                 ),
             )
         )
+
     db.session.commit()
+
     flash(
         "Mallen uppdaterades.",
         "success",
     )
+
     return redirect(
         url_for(
             "templates.edit",
@@ -259,4 +310,63 @@ def manage_template(template_id):
         "templates/manage_template.html",
         template=template,
         question_links=question_links,
+    )
+
+@templates_bp.get("/<int:template_id>/copy")
+@teacher_required
+def copy(template_id):
+    template = db.session.get(Template, template_id)
+
+    if template is None:
+        abort(404)
+
+    new_template = Template(
+        author_id=g.user.id,
+        title=f"{template.title} - kopia",
+        description=template.description,
+    )
+
+    db.session.add(new_template)
+    db.session.flush()
+
+    for link in template.question_links:
+        new_template.question_links.append(
+            QuestionTemplateLink(
+                question_id=link.question_id,
+                order_index=link.order_index,
+                required=link.required,
+                extra_data=link.extra_data,
+            )
+        )
+
+    db.session.commit()
+
+    return redirect(
+        url_for(
+            "templates.edit",
+            template_id=new_template.id,
+        )
+    )
+
+@templates_bp.post("/delete/<int:template_id>")
+@teacher_required
+def delete(template_id):
+    template = db.session.get(Template, template_id)
+
+    if template is None:
+        abort(404)
+
+    if template_action(template) != "new":
+        abort(403)
+
+    db.session.delete(template)
+    db.session.commit()
+
+    flash(
+        "Mallen togs bort.",
+        "success",
+    )
+
+    return redirect(
+        url_for("templates.manage")
     )

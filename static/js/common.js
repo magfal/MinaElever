@@ -2,105 +2,567 @@
 // TOM SELECT
 // ============================================================
 
+// ------------------------------------------------------------
+// TomSelect
+// ------------------------------------------------------------
+
+// ============================================================
+// TOM SELECT
+// ============================================================
+
 function initTomSelects(root = document) {
-    root.querySelectorAll(".tomselect-create").forEach(el => {
-        if (el.tomselect) return;
-        const tom = new TomSelect(el, {
+
+    initCreateTomSelects(root);
+    initFilterTomSelects(root);
+}
+
+
+// ------------------------------------------------------------
+// TomSelect: skapa nya värden
+// ------------------------------------------------------------
+
+function initCreateTomSelects(root) {
+
+    root.querySelectorAll(".tomselect-create").forEach(select => {
+
+        if (select.tomselect) return;
+
+        const tom = new TomSelect(select, {
             create: true,
             createOnBlur: true,
             persist: false,
             dropdownParent: "body"
         });
-        const button = el
+
+        const button = select
             .closest(".input-group")
             ?.querySelector(".add-tomselect-btn");
-        if (button) {
-            tom.control_input.addEventListener("keydown", event => {
-                if (event.key !== "Enter") return;
-                event.preventDefault();
-                event.stopPropagation();
-                el.dispatchEvent(
-                    new Event("change", { bubbles: true })
-                );
-                button.click();
-            });
-        }
-    });
-    root.querySelectorAll(".tomselect-filter").forEach(el => {
-        if (el.tomselect) return;
-        const tom = new TomSelect(el, {
-            create: false,
-            allowEmptyOption: true
-        });
-        if (el.id !== "mediaTags") return;
-        tom.control_input.addEventListener("input", () => {
-            updateAddMediaTagButton();
-        });
-        tom.on("dropdown_open", () => {
-            updateAddMediaTagButton();
-        });
-        const button = document.querySelector("#addMediaTagBtn");
+
         if (!button) return;
-        let mediaTagName = "";
-        button.addEventListener("mousedown", () => {
-            mediaTagName = tom.control_input.value.trim();
-        });
-        button.onclick = () => {
-            if (!mediaTagName) return;
-            const url = new URL(
-                button.dataset.url,
-                window.location.origin
+
+        tom.control_input.addEventListener("keydown", event => {
+
+            if (event.key !== "Enter") return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            select.dispatchEvent(
+                new Event("change", { bubbles: true })
             );
-            url.searchParams.set("name", mediaTagName);
-            htmx.ajax("GET", url.toString(), {
-                target: "#mediaTagModalContent",
-                swap: "innerHTML"
-            });
-        };
+
+            button.click();
+        });
     });
 }
 
-function updateAddMediaTagButton() {
-    const select = document.querySelector("#mediaTags");
+
+// ------------------------------------------------------------
+// TomSelect: filtrering / befintliga värden
+// ------------------------------------------------------------
+
+function initFilterTomSelects(root) {
+
+    root.querySelectorAll(".tomselect-filter").forEach(select => {
+
+        if (select.tomselect) return;
+
+        const tom = new TomSelect(select, {
+            create: false,
+            allowEmptyOption: true,
+            dropdownParent:
+                select.id === "questionTags"
+                    ? "body"
+                    : undefined
+        });
+
+        if (select.id === "questionTags") {
+            initQuestionTags(tom);
+            return;
+        }
+
+        if (select.id === "mediaTags") {
+            initMediaTags(tom);
+        }
+    });
+}
+
+
+// ============================================================
+// MEDIA-TAGGAR
+// ============================================================
+
+function initMediaTags(tom) {
+
     const button = document.querySelector("#addMediaTagBtn");
-    if (!select?.tomselect || !button) return;
-    const tom = select.tomselect;
+    const badges = document.querySelector("#mediaTagBadges");
+
+    if (!button || !badges) return;
+
+
+    function getOption(id) {
+
+        const option = tom.options[String(id)];
+
+        if (!option) return null;
+
+        const original = tom.input.querySelector(
+            `option[value="${CSS.escape(String(id))}"]`
+        );
+
+        if (original) {
+            option.tag_type = original.dataset.tagType;
+        }
+
+        return option;
+    }
+
+
+    function getTagClass(tagType) {
+
+        switch (tagType) {
+
+            case "SUBJECT":
+                return "text-bg-primary";
+
+            case "AREA":
+                return "text-bg-secondary";
+
+            case "DECK":
+                return "text-bg-info";
+
+            case "OTHER":
+                return "text-bg-dark";
+
+            default:
+                return "text-bg-light";
+        }
+    }
+
+
+    function addBadge(id) {
+
+        id = String(id);
+
+        if (
+            badges.querySelector(
+                `[data-tag-id="${CSS.escape(id)}"]`
+            )
+        ) {
+            return;
+        }
+
+        const option = getOption(id);
+
+        if (!option) return;
+
+        const badge = document.createElement("span");
+
+        badge.className =
+            `badge me-1 ${getTagClass(option.tag_type)}`;
+
+        badge.dataset.tagId = id;
+
+        badge.innerHTML = `
+            ${option.text.trim()}
+            <button
+                type="button"
+                class="btn-close btn-close-white ms-1 media-tag-remove"
+                aria-label="Ta bort taggen ${option.text.trim()}"
+                data-tag-id="${id}">
+            </button>
+        `;
+
+        badges.appendChild(badge);
+    }
+
+
+    function removeBadge(id) {
+
+        const badge = badges.querySelector(
+            `[data-tag-id="${CSS.escape(String(id))}"]`
+        );
+
+        badge?.remove();
+    }
+
+
+    tom.on("item_add", addBadge);
+    tom.on("item_remove", removeBadge);
+
+
+    badges.addEventListener("click", event => {
+
+        const removeButton = event.target.closest(
+            ".media-tag-remove"
+        );
+
+        if (!removeButton) return;
+
+        tom.removeItem(removeButton.dataset.tagId);
+    });
+
+
+    updateAddMediaTagButton(tom, button);
+
+    tom.control_input.addEventListener("input", () => {
+        updateAddMediaTagButton(tom, button);
+    });
+
+    tom.on("dropdown_open", () => {
+        updateAddMediaTagButton(tom, button);
+    });
+
+
+    let mediaTagName = "";
+
+    button.addEventListener("mousedown", () => {
+        mediaTagName = tom.control_input.value.trim();
+    });
+
+    button.onclick = () => {
+
+        if (!mediaTagName) return;
+
+        const url = new URL(
+            button.dataset.url,
+            window.location.origin
+        );
+
+        url.searchParams.set("name", mediaTagName);
+
+        htmx.ajax("GET", url.toString(), {
+            target: "#mediaTagModalContent",
+            swap: "innerHTML"
+        });
+    };
+}
+
+
+function updateAddMediaTagButton(tom, button) {
+
     const value = tom.control_input.value.trim();
+
     if (!value) {
         button.disabled = true;
         return;
     }
+
     const exists = Object.values(tom.options).some(option =>
         option.text.trim().toLowerCase() === value.toLowerCase()
     );
+
     button.disabled = exists;
 }
 
-// Ny media-tagg har skapats
+
+// ============================================================
+// MEDIAREDIGERING
+// ============================================================
+
+function setupMediaEdit() {
+
+    const modal = document.getElementById("editMediaModal");
+
+    if (!modal) return;
+
+    const form = document.getElementById("editMediaForm");
+    const nameInput = document.getElementById("mediaName");
+    const tagSelect = document.getElementById("mediaTags");
+
+    modal.addEventListener("show.bs.modal", event => {
+
+        const button = event.relatedTarget;
+
+        if (!button) return;
+
+        const mediaId = button.dataset.mediaId;
+        const mediaName = button.dataset.mediaName;
+
+        const mediaTags = button.dataset.mediaTags
+            ? button.dataset.mediaTags.split(",")
+            : [];
+
+        form.action = `/media/${mediaId}/edit`;
+        nameInput.value = mediaName;
+
+        const tom = tagSelect.tomselect;
+
+        if (!tom) return;
+
+        tom.clear(true);
+        tom.setValue(mediaTags);
+    });
+}
+
+
+// ============================================================
+// NY MEDIA-TAGG
+// ============================================================
+
 document.body.addEventListener("media-tag-created", event => {
+
     const data = event.detail;
     const select = document.querySelector("#mediaTags");
+
     if (!select?.tomselect) return;
+
     const tom = select.tomselect;
+    const id = String(data.id);
+
     tom.addOption({
-        value: String(data.id),
+        value: id,
         text: data.name
     });
-    tom.addItem(String(data.id));
+
+    tom.options[id].tag_type = data.tag_type;
+
+    tom.addItem(id);
     tom.refreshOptions(false);
+
     const modal = document.getElementById("mediaTagModal");
+
     if (modal) {
         bootstrap.Modal.getOrCreateInstance(modal).hide();
     }
 });
 
-// Visa minimodalen när formuläret har laddats
-document.body.addEventListener("htmx:afterSwap", event => {
-    if (event.detail.target.id !== "mediaTagModalContent") return;
-    const modal = document.getElementById("mediaTagModal");
-    if (modal) {
-        bootstrap.Modal.getOrCreateInstance(modal).show();
+
+// ============================================================
+// FRÅGETAGGAR
+// ============================================================
+
+function initQuestionTags(tom) {
+
+    const select = tom.input;
+    const badges = document.querySelector("#questionTagBadges");
+    const button = document.querySelector("#addQuestionTagBtn");
+
+    if (!select || !badges || !button) return;
+
+
+    function getOption(id) {
+
+        const option = tom.options[String(id)];
+
+        if (!option) return null;
+
+        const original = select.querySelector(
+            `option[value="${CSS.escape(String(id))}"]`
+        );
+
+        if (original) {
+            option.tag_type = original.dataset.tagType;
+        }
+
+        return option;
     }
+
+
+    function getTagClass(tagType) {
+
+        switch (tagType) {
+
+            case "SUBJECT":
+                return "text-bg-primary";
+
+            case "AREA":
+                return "text-bg-secondary";
+
+            case "DECK":
+                return "text-bg-info";
+
+            case "OTHER":
+                return "text-bg-dark";
+
+            default:
+                return "text-bg-light";
+        }
+    }
+
+
+    function addBadge(id) {
+
+        id = String(id);
+
+        if (
+            badges.querySelector(
+                `[data-tag-id="${CSS.escape(id)}"]`
+            )
+        ) {
+            return;
+        }
+
+        const option = getOption(id);
+
+        if (!option) return;
+
+        const badge = document.createElement("span");
+
+        badge.className =
+            `badge me-1 ${getTagClass(option.tag_type)}`;
+
+        badge.dataset.tagId = id;
+
+        badge.innerHTML = `
+            ${option.text.trim()}
+            <button
+                type="button"
+                class="btn-close btn-close-white ms-1 question-tag-remove"
+                aria-label="Ta bort taggen ${option.text.trim()}"
+                data-tag-id="${id}">
+            </button>
+        `;
+
+        badges.appendChild(badge);
+    }
+
+
+    function removeBadge(id) {
+
+        const badge = badges.querySelector(
+            `[data-tag-id="${CSS.escape(String(id))}"]`
+        );
+
+        badge?.remove();
+    }
+
+
+    tom.on("item_add", addBadge);
+    tom.on("item_remove", removeBadge);
+
+
+    badges.addEventListener("click", event => {
+
+        const removeButton = event.target.closest(
+            ".question-tag-remove"
+        );
+
+        if (!removeButton) return;
+
+        tom.removeItem(removeButton.dataset.tagId);
+    });
+
+
+    updateAddQuestionTagButton(tom, button);
+
+    tom.control_input.addEventListener("input", () => {
+        updateAddQuestionTagButton(tom, button);
+    });
+
+    tom.on("dropdown_open", () => {
+        updateAddQuestionTagButton(tom, button);
+    });
+
+
+    let questionTagName = "";
+
+    button.addEventListener("mousedown", () => {
+        questionTagName = tom.control_input.value.trim();
+    });
+
+    button.onclick = () => {
+
+        if (!questionTagName) return;
+
+        const url = new URL(
+            button.dataset.url,
+            window.location.origin
+        );
+
+        url.searchParams.set("name", questionTagName);
+
+        htmx.ajax("GET", url.toString(), {
+            target: "#questionTagModalContent",
+            swap: "innerHTML"
+        });
+    };
+}
+
+
+function updateAddQuestionTagButton(tom, button) {
+
+    const value = tom.control_input.value.trim();
+
+    if (!value) {
+        button.disabled = true;
+        return;
+    }
+
+    const exists = Object.values(tom.options).some(option =>
+        option.text.trim().toLowerCase() === value.toLowerCase()
+    );
+
+    button.disabled = exists;
+}
+
+
+// ============================================================
+// NY FRÅGETAGG
+// ============================================================
+
+document.body.addEventListener("question-tag-created", event => {
+
+    const data = event.detail;
+    const select = document.querySelector("#questionTags");
+
+    if (!select?.tomselect) return;
+
+    const tom = select.tomselect;
+    const id = String(data.id);
+
+    tom.addOption({
+        value: id,
+        text: data.name
+    });
+
+    tom.options[id].tag_type = data.tag_type;
+
+    tom.addItem(id);
+    tom.refreshOptions(false);
+
+    const modal = document.getElementById("questionTagModal");
+
+    if (modal) {
+        bootstrap.Modal.getOrCreateInstance(modal).hide();
+    }
+});
+
+
+// ============================================================
+// VISA TAGG-MINIMODALER EFTER HTMX-SWAP
+// ============================================================
+
+document.body.addEventListener("htmx:afterSwap", event => {
+
+    const target = event.detail.target;
+
+    if (target.id === "mediaTagModalContent") {
+
+        const modal = document.getElementById("mediaTagModal");
+
+        if (modal) {
+            bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
+
+        return;
+    }
+
+    if (target.id === "questionTagModalContent") {
+
+        const modal = document.getElementById("questionTagModal");
+
+        if (modal) {
+            bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
+    }
+});
+
+document.addEventListener("hidden.bs.modal", event => {
+
+    if (event.target.id !== "studentModal") return;
+
+    document.getElementById("studentModalContent").innerHTML = "";
 });
 
 // ============================================================
@@ -289,30 +751,38 @@ function setupImageReferences() {
 // ------------------------------------------------------------
 // Fyller i mediats redigeringsmodal när den öppnas.
 function setupMediaEdit() {
+
     const modal = document.getElementById("editMediaModal");
+
     if (!modal) return;
+
     const form = document.getElementById("editMediaForm");
     const nameInput = document.getElementById("mediaName");
     const tagSelect = document.getElementById("mediaTags");
+
     modal.addEventListener("show.bs.modal", event => {
+
         const button = event.relatedTarget;
+
         if (!button) return;
+
         const mediaId = button.dataset.mediaId;
         const mediaName = button.dataset.mediaName;
+
         const mediaTags = button.dataset.mediaTags
             ? button.dataset.mediaTags.split(",")
             : [];
+
         form.action = `/media/${mediaId}/edit`;
         nameInput.value = mediaName;
-        const tomSelect = tagSelect.tomselect;
-        if (tomSelect) {
-            tomSelect.clear(true);
-            tomSelect.setValue(mediaTags, true);
-        } else {
-            Array.from(tagSelect.options).forEach(option => {
-                option.selected = mediaTags.includes(option.value);
-            });
-        }
+
+        const tom = tagSelect.tomselect;
+
+        if (!tom) return;
+
+        tom.clear(true);
+
+        tom.setValue(mediaTags);
     });
 }
 

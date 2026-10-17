@@ -3,11 +3,13 @@ from urllib.parse import urlparse
 from datetime import date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g, abort
 from sqlalchemy import select, case
+from sqlalchemy.orm import selectinload
 from app.extensions import db
-from app.models import Media, Tag, TagType, QuestionType, Question, Choice, MediaType 
+from app.models import Media, Tag, TagType, QuestionType, Question, Template, QuestionTemplateLink, Choice, MediaType 
 from app.services.auth import teacher_required
 from app.services.utils import utc_now, utcify
 from app.services.tags import get_selected_tags
+from app.routes.assignments import assignment_status
 
 questions_bp = Blueprint(
     "questions",
@@ -19,13 +21,25 @@ questions_bp = Blueprint(
 # HJÄLPFUNKTIONER
 # -------------------------------------------------
 
+def question_action(question):
+    if not question.template_links:
+        return "new"
+    for link in question.template_links:
+        if any(
+            assignment_status(assignment) == "Avslutad"
+            for assignment in link.template.assignments
+        ):
+            return "locked"
+    return "active"
+
 def get_question_form_data():
     """Hämta data som behövs till frågeformuläret."""
     question_types = list(QuestionType)
+    tag_types = list(TagType)
     tags = db.session.scalars(
         select(Tag).order_by(Tag.name)
         ).all()
-    return question_types, tags
+    return question_types, tag_types, tags
 
 def get_media_from_question_text(text):
     names = re.findall(r"\[([^\[\]:]+)(?::\d+)?\]", text)
@@ -224,10 +238,17 @@ def manage():
     tag_id = request.args.get("tag_id", type=int)
     tag_type_name = request.args.get("tag_type", "").strip()
     question_type_name = request.args.get("question_type", "").strip()
-    created_from = request.args.get("created_from", "").strip()
-    created_to = request.args.get("created_to", "").strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
     media_id = request.args.get("media_id", type=int)
-    query = select(Question)
+    query = (
+        select(Question)
+        .options(
+            selectinload(Question.template_links)
+            .selectinload(QuestionTemplateLink.template)
+            .selectinload(Template.assignments),
+        )
+    )
     if media_id:
         query = query.where(
             Question.media.any(Media.id == media_id)
@@ -254,23 +275,25 @@ def manage():
             query = query.where(
                 Question.question_type == question_type
             )
-    if created_from:
+    if date_from:
         try:
-            created_from_date = date.fromisoformat(created_from)
-            query = query.where(
-                Question.created_at >= created_from_date
-            )
+            date_from = date.fromisoformat(date_from)
         except ValueError:
-            pass
-    if created_to:
+            date_from = None
+    if date_from:
+        query = query.where(
+            Question.created_at >= date_from
+        )
+    if date_to:
         try:
-            created_to_date = date.fromisoformat(created_to)
-            query = query.where(
+            date_to = date.fromisoformat(date_to)
+        except ValueError:
+            date_to = None
+    if date_to:
+        query = query.where(
                 Question.created_at
-                < created_to_date + timedelta(days=1)
+                < date_to + timedelta(days=1)
             )
-        except ValueError:
-            pass
     if search:
         terms = [
             term.strip()
@@ -291,21 +314,18 @@ def manage():
                 .order_by(score.desc())
                 .limit(100)
             )
-            query = query
         else:
             query = query.limit(100)
     else:
-        query = query.order_by(Question.created_at.desc()).limit(100)
-    
+        query = query.order_by(Question.created_at.desc()).limit(100)   
     questions = db.session.scalars(query).all()
-    
     if request.headers.get("HX-Request"):
         return render_template(
             "questions/_questions_table.html",
             questions=questions,
+            question_action=question_action,
         )
-    
-    question_types, tags = get_question_form_data()
+    question_types, tag_types, tags = get_question_form_data()
     tag_types = list(TagType)
     today = utc_now().strftime("%Y-%m-%d")
     return render_template(
@@ -318,10 +338,11 @@ def manage():
         tag_id=tag_id,
         tag_type_name=tag_type_name,
         question_type_name=question_type_name,
-        created_from=created_from,
-        created_to=created_to,
+        date_from=date_from,
+        date_to=date_to,
         search=search,
         media_id=media_id,
+        question_action=question_action,
     )
 
 # -------------------------------------------------
@@ -334,7 +355,7 @@ def new_form():
         request.args.get("return_url"),
         "questions.manage",
     )
-    question_types, tags = get_question_form_data()
+    question_types, tag_types, tags = get_question_form_data()
     media = (
         db.session.query(Media)
         .filter(Media.media_type == MediaType.IMAGE)
@@ -358,6 +379,7 @@ def new_form():
         question=None,
         question_types=question_types,
         tags=tags,
+        tag_types=tag_types,
         question_data=None,
         media=media,
         media_tags=media_tags,
@@ -518,7 +540,7 @@ def edit_question(question_id):
     question = db.session.get(Question, question_id)
     if question is None:
         abort(404)
-    question_types, tags = get_question_form_data()
+    question_types, tag_types, tags = get_question_form_data()
     media = (
         db.session.query(Media)
         .filter(Media.media_type == MediaType.IMAGE)
@@ -540,6 +562,7 @@ def edit_question(question_id):
         question_is_locked=question_is_locked(question),
         question_types=question_types,
         tags=tags,
+        tag_types=tag_types,
         question_data={
             "expected_answer": question.expected_answer,
             "choices": [
