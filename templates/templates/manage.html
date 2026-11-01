@@ -38,6 +38,31 @@
                 value="{{ request.args.get('search', '') }}"
                 placeholder="...">
         </div>
+        <!-- Taggtyp -->
+        <div class="col-12 col-md-4">
+            <label for="searchTags" class="form-label">
+                Taggar
+            </label>
+            <select
+                id="searchTags"
+                name="tag_ids"
+                class="form-select tomselect-filter"
+                multiple>
+                {% for tag_type in tag_types %}
+                    <optgroup label="{{ tag_type.value }}">
+                        {% for tag in tags if tag.tag_type == tag_type %}
+                            <option
+                                value="{{ tag.id }}"
+                                {% if tag.id|string in selected_tag_ids %}
+                                    selected
+                                {% endif %}>
+                                {{ tag.name }}
+                            </option>
+                        {% endfor %}
+                    </optgroup>
+                {% endfor %}
+            </select>
+        </div>
         <!-- Tid (från) -->
         <div class="col-12 col-md-2 ms-md-auto">
             <label for="dateFrom" class="form-label">

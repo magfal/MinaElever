@@ -1,123 +1,120 @@
-<!-- Frågor -->
 <div class="sticky-table-container">
-    <table class="table table-hover mb-0 sticky-table">
-        <thead>
-            <tr>
-                <th class="sortable">
-                    Fråga
-                    <i class="bi bi-chevron-expand ms-1"></i>
-                </th>
-                <th class="sortable">
-                    Skapad
-                    <i class="bi bi-chevron-expand ms-1"></i>
-                </th>
-                <th class="sortable">
-                    Svarstyp    
-                    <i class="bi bi-chevron-expand ms-1"></i>
-                </th>
-                {% if table_mode == "template" %}
-                <th
-                    class="text-center"
-                    style="width: 3rem;">
-                </th>
-            {% else %}
-                <th></th>
-            {% endif %}
-            </tr>
-        </thead>
-        <tbody>
-        {% for question in questions %}
-            <tr>
-                <!-- FRÅGA -->
-                <td class="question-cell">
-                    <div class="question-table-text"></div>
-                    <textarea
-                        class="question-source d-none"
-                        aria-hidden="true"
-                    >{{ question.text }}</textarea>
-                </td>
-                <!-- SKAPAD -->
-                <td>
-                    {{ question.created_at.strftime("%Y-%m-%d") }}
-                </td>
-                <!-- SVARSTYP -->
-                <td>
-                    {{ question.question_type.value }}
-                </td>
-                {% if table_mode == "template" %}
-                    <!-- VÄLJ -->
-                    <td class="text-center">
-                        <input
-                            type="checkbox"
-                            class="form-check-input template-question-checkbox"
-                            name="question_ids"
-                            value="{{ question.id }}"
-                            {% if question.id in selected_question_ids %}
-                                checked
-                            {% endif %}>
-                    </td>
-                {% else %}
-                    <!-- ÄNDRA / TA BORT -->
-                    <td class="text-end">
-                        {% set action = question_action(question) %}
-
-                        {% if action == "locked" %}
-                            <a
-                                href="{{ url_for(
-                                    'questions.copy_question',
-                                    question_id=question.id
-                                ) }}"
-                                class="btn btn-sm btn-outline-primary">
-                                Kopiera
-                            </a>
-
-                        {% elif action == "active" %}
-                            <a
-                                href="{{ url_for(
-                                    'questions.edit_question',
-                                    question_id=question.id
-                                ) }}"
-                                class="btn btn-sm btn-outline-primary">
-                                Ändra
-                            </a>
-
-                        {% else %}
-                            <a
-                                href="{{ url_for(
-                                    'questions.edit_question',
-                                    question_id=question.id
-                                ) }}"
-                                class="btn btn-sm btn-outline-primary">
-                                Ändra
-                            </a>
-
-                            <form
-                                method="POST"
-                                action="{{ url_for(
-                                    'questions.delete_question',
-                                    question_id=question.id
-                                ) }}"
-                                class="d-inline"
-                                onsubmit="return confirm('Ta bort frågan permanent?');">
-                                <button
-                                    type="submit"
-                                    class="btn btn-sm btn-outline-danger">
-                                    Ta bort
-                                </button>
-                            </form>
-                        {% endif %}
-                    </td>
-                {% endif %}
-            </tr>
-        {% else %}
-            <tr>
-                <td
-                    colspan="8"
-                    class="text-center text-muted py-4">
-                    Tom tabell.
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    {% if questions %}
+        <table class="table table-hover mb-0 sticky-table">
+            <thead>
+                <tr>
+                   {% if page_mode in ["questions", "template_new", "template_edit"] %}
+                        <th class="text-center">
+                           <input
+                                class="selection-checkbox"     
+                                type="checkbox"
+                                :checked="allVisibleSelected"
+                                :indeterminate="someVisibleSelected"
+                                @change="toggleAll($event.target.checked)">
+                        </th>
+                    {% endif %}
+                    <th class="sortable">
+                        Fråga
+                        <i class="bi bi-chevron-expand ms-1"></i>
+                    </th>
+                    <th class="sortable">
+                        Skapad
+                        <i class="bi bi-chevron-expand ms-1"></i>
+                    </th>
+                    <th class="sortable">
+                        Svarstyp
+                        <i class="bi bi-chevron-expand ms-1"></i>
+                    </th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for question in questions %}
+                    <tr
+                        data-selectable-row
+                        data-id="{{ question.id }}"
+                        data-selected="{{ 'true' if question.id in selected_question_ids else 'false' }}">
+                    {% if page_mode in ["questions", "template_new", "template_edit"] %}
+                        <td class="text-center">
+                            {% if page_mode == "questions" %}
+                                <input
+                                    class="selection-checkbox"
+                                    type="checkbox"
+                                    name="selected_question_ids"
+                                    value="{{ question.id }}"
+                                    form="templateForm"
+                                    :checked="selectedIds.includes('{{ question.id }}')"
+                                    @change="toggleOne('{{ question.id }}')">
+                            {% else %}
+                                <input
+                                    class="selection-checkbox"
+                                    type="checkbox"
+                                    name="question_ids"
+                                    value="{{ question.id }}"
+                                    form="templateForm"
+                                    :checked="selectedIds.includes('{{ question.id }}')"
+                                    @change="toggleOne('{{ question.id }}')">
+                            {% endif %}
+                        </td>
+                    {% endif %}
+                        <td class="question-cell">
+                            <div class="question-table-text"></div>
+                            <textarea
+                                class="question-source d-none"
+                                aria-hidden="true"
+                            >{{ question.text }}</textarea>
+                            {% if question.tags %}
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    {% for tag in question.tags %}
+                                        <span class="badge
+                                            {% if tag.tag_type.name == 'SUBJECT' %}
+                                                text-bg-primary
+                                            {% elif tag.tag_type.name == 'AREA' %}
+                                                text-bg-secondary
+                                            {% elif tag.tag_type.name == 'DECK' %}
+                                                text-bg-info
+                                            {% elif tag.tag_type.name == 'OTHER' %}
+                                                text-bg-dark
+                                            {% else %}
+                                                text-bg-light
+                                            {% endif %}">
+                                            {{ tag.name }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ question.created_at.strftime("%Y-%m-%d") }}
+                        </td>
+                        <td>
+                            {{ question.question_type.value }}
+                        </td>
+                        <td class="text-end">
+                            {% set action = question_action(question) %}
+                            {% if action == "locked" %}
+                                <a href="{{ url_for('questions.copy_question', question_id=question.id) }}"
+                                class="btn btn-sm btn-outline-primary">Kopiera</a>
+                            {% else %}
+                                <a href="{{ url_for('questions.edit_question', question_id=question.id) }}"
+                                class="btn btn-sm btn-outline-primary">Ändra</a>
+                                {% if action != "active" %}
+                                    <form method="POST"
+                                        action="{{ url_for('questions.delete_question', question_id=question.id) }}"
+                                        class="d-inline"
+                                        onsubmit="return confirm('Ta bort frågan permanent?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Ta bort</button>
+                                    </form>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted ps-3 pt-2 mb-2">
+            Tabellen är tom.
+        </p>
+    {% endif %}
 </div>

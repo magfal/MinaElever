@@ -12,7 +12,7 @@
         <button
             type="button"
             class="btn btn-outline-primary"
-            hx-post="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
+            hx-post="{{ url_for('students.edit_students_modal', student_id=student.id) }}"
             hx-target="#loginCodeField"
             hx-swap="outerHTML"
             hx-vals='{"action": "new_code"}'>

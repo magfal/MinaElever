@@ -3,9 +3,11 @@ from flask import Blueprint, render_template, request, g, abort, redirect, url_f
 from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from app.extensions import db
-from app.models import Template, AssignmentType, Question, QuestionTemplateLink
+from app.models import Template, AssignmentType, Question, Tag, TagType, QuestionTemplateLink
 from app.services.auth import teacher_required
 from app.routes.assignments import assignment_status
+from app.routes.questions import question_action, get_question_form_data
+from app.services.utils import utc_now, utcify
 
 templates_bp = Blueprint(
     "templates",
@@ -31,6 +33,8 @@ def manage():
     search = request.args.get("search", "").strip()
     date_from = request.args.get("date_from", "")
     date_to = request.args.get("date_to", "")
+    tag_ids = request.args.getlist("tag_ids", type=int)
+    selected_tag_ids = [str(tag_id) for tag_id in tag_ids]
     query = (
         select(Template)
         .options(
@@ -66,9 +70,22 @@ def manage():
                 Template.created_at
                 < date_to + timedelta(days=1)
             )
+    # Taggar
+    for tag_id in tag_ids:
+        query = query.where(
+            Template.question_links.any(
+                QuestionTemplateLink.question.has(
+                    Question.tags.any(Tag.id == tag_id)
+                )
+            )
+        )
     query = query.order_by(
         Template.created_at.desc()
     )
+    tag_types = list(TagType)
+    tags = db.session.scalars(
+        select(Tag).order_by(Tag.name)
+        ).all()
     templates = db.session.scalars(query).all()
     if request.headers.get("HX-Request"):
         return render_template(
@@ -76,7 +93,6 @@ def manage():
             templates=templates,
             template_action=template_action,
         )
-
     return render_template(
         "templates/manage.html",
         templates=templates,
@@ -84,28 +100,50 @@ def manage():
         search=search,
         template_action=template_action,
         date_from=date_from,
-        date_to=date_to
+        date_to=date_to,
+        tag_types=tag_types,
+        tags=tags,
+        selected_tag_ids=selected_tag_ids,
     )
 
-@templates_bp.get("/new")
+@templates_bp.route("/new", methods=["GET", "POST"])
 @teacher_required
 def new():
-    questions = db.session.scalars(
-        select(Question)
-        .order_by(Question.created_at.desc())
-    ).all()
-    return render_template(
-        "templates/new.html",
-        template=None,
-        template_types=list(AssignmentType),
-        questions=questions,
-        table_mode="template",
-        selected_question_ids=set(),
-    )
+    if request.method == "GET":
+        selected_question_ids = set(
+            request.args.getlist("selected_question_ids", type=int)
+        )
 
-@templates_bp.post("/new")
-@teacher_required
-def create():
+        # Hämta frågor som ska visas i de två tabellerna
+        selected_questions = db.session.scalars(
+            select(Question)
+            .where(Question.id.in_(selected_question_ids))
+            .order_by(Question.created_at.desc())
+        ).all() if selected_question_ids else []
+
+        available_questions = db.session.scalars(
+            select(Question)
+            .where(~Question.id.in_(selected_question_ids))
+            .order_by(Question.created_at.desc())
+        ).all()
+
+        question_types, tag_types, tags = get_question_form_data()
+        today = utc_now().strftime("%Y-%m-%d")
+
+        return render_template(
+            "questions/manage.html",
+            page_mode="template_new",
+            template=None,
+            selected_questions=selected_questions,
+            available_questions=available_questions,
+            selected_question_ids=selected_question_ids,
+            question_types=question_types,
+            tag_types=tag_types,
+            tags=tags,
+            today=today,
+            question_action=question_action,
+        ) 
+    # POST – skapa mallen
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
     if not title:
@@ -168,26 +206,36 @@ def create():
 @teacher_required
 def edit(template_id):
     template = db.session.get(Template, template_id)
-
     if template is None:
         abort(404)
-
-    questions = db.session.scalars(
-        select(Question)
-        .order_by(Question.created_at.desc())
-    ).all()
-
     selected_question_ids = {
         link.question_id
         for link in template.question_links
     }
-
+    selected_questions = db.session.scalars(
+        select(Question)
+        .where(Question.id.in_(selected_question_ids))
+        .order_by(Question.created_at.desc())
+    ).all() if selected_question_ids else []
+    available_questions = db.session.scalars(
+        select(Question)
+        .where(~Question.id.in_(selected_question_ids))
+        .order_by(Question.created_at.desc())
+    ).all()
+    question_types, tag_types, tags = get_question_form_data()
+    today = utc_now().strftime("%Y-%m-%d")
     return render_template(
-        "templates/new.html",
+        "questions/manage.html",
+        page_mode="template_edit",
         template=template,
-        questions=questions,
-        table_mode="template",
+        selected_questions=selected_questions,
+        available_questions=available_questions,
         selected_question_ids=selected_question_ids,
+        question_types=question_types,
+        tag_types=tag_types,
+        tags=tags,
+        today=today,
+        question_action=question_action,
     )
 
 @templates_bp.post("/edit/<int:template_id>")

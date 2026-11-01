@@ -3,7 +3,6 @@
     hx-post="{{ url_for('tags.create_question_tag') }}"
     hx-target="#questionTagModalContent"
     hx-swap="none">
-
     <div class="modal-header">
         <h5 class="modal-title">
             Lägg till tagg
@@ -58,15 +57,7 @@
             </select>
         </div>
     </div>
-
     <div class="modal-footer">
-        <button
-            type="button"
-            class="btn btn-secondary"
-            data-bs-dismiss="modal">
-            Avbryt
-        </button>
-
         <button
             type="submit"
             class="btn btn-primary">

@@ -1,0 +1,37 @@
+<div id="questionSelection">
+    <!-- TILLGÄNGLIGA FRÅGOR -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Tillgängliga frågor</h5>
+        </div>
+
+        <div class="card-body p-0">
+            {% set questions = available_questions %}
+            {% include "questions/_questions_table.html" %}
+        </div>
+    </div>
+    <!-- VALDA FRÅGOR -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                Valda frågor ({{ selected_questions|length }})
+            </h5>
+
+            {% if page_mode == "questions" %}
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    :disabled="selectedIds.length === 0"
+                    @click="createTemplate()">
+                    Skapa mall
+                </button>
+            {% endif %}
+        </div>
+
+        <div class="card-body p-0">
+            {% set questions = selected_questions %}
+            {% include "questions/_questions_table.html" %}
+        </div>
+    </div>
+
+</div>

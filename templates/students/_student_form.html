@@ -4,147 +4,144 @@
     hx-post="{{ action }}"
     hx-target="#studentsTable"
     hx-swap="innerHTML">
-
     <div class="modal-header">
         <h5 class="modal-title">
-            Ändra elev
+            {{ title }}
         </h5>
-
         <button
             type="button"
             class="btn-close"
             data-bs-dismiss="modal">
         </button>
     </div>
-
     <div class="modal-body">
-
-        <div class="row g-3 mb-3">
-
-            <div class="col-md-8">
-                <label class="form-label">
-                    Namn
-                </label>
-
-                <input
-                    class="form-control"
-                    name="name"
-                    value="{{ student.name if student else '' }}">
-            </div>
-
-            <div class="col-md-4">
-                <label
-                    class="form-label"
-                    for="studentGroup">
-                    Klass
-                </label>
-
-                <select
-                    class="form-select"
-                    id="studentGroup"
-                    name="group_id">
-
-                    {% for group in groups %}
-                        <option
-                            value="{{ group.id }}"
-                            {% if student.group_id == group.id %}selected{% endif %}>
-                            {{ group.name }}
-                        </option>
-                    {% endfor %}
-
-                </select>
-            </div>
-
-        </div>
-
-
+        {# Elevens ID - behövs av den gemensamma sparrouten #}
+        <input
+            type="hidden"
+            name="student_ids"
+            value="{{ student.id }}">
+        {# Namn #}
         <div class="mb-3">
-
-            <label class="form-label">
-                Elevens grupper
+            <label
+                class="form-label"
+                for="studentName">
+                Namn
             </label>
-
-            <div class="input-group">
-
-                <select
-                    id="studentTeams"
-                    name="team_ids"
-                    class="form-select tomselect-filter"
-                    multiple>
-
-                    {% for team in teams %}
-                        <option
-                            value="{{ team.id }}"
-                            {% if team in student.teams %}selected{% endif %}>
-                            {{ team.name }}
-                        </option>
-                    {% endfor %}
-
-                </select>
-
-            </div>
-
+            <input
+                class="form-control"
+                type="text"
+                id="studentName"
+                name="name"
+                value="{{ student.name }}"
+                required>
         </div>
-
-
-        <div id="loginCodeField">
-
-            <div class="input-group">
-
-                <input
-                    type="text"
-                    name="login_code"
-                    class="form-control"
-                    value="{{ student.login_code }}"
-                    readonly>
-
-                <button
-                    type="button"
-                    class="btn btn-outline-primary"
-                    hx-post="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
-                    hx-target="#loginCodeField"
-                    hx-swap="outerHTML"
-                    hx-vals='{"action": "new_code"}'>
-                    Generera ny kod
-                </button>
-
-            </div>
-
-        </div>
-
-
+        {# Klass #}
         <div class="mb-3">
-
+            <label
+                class="form-label"
+                for="studentGroup">
+                Klass
+            </label>
+            <select
+                class="form-select"
+                id="studentGroup"
+                name="group_id">
+                <option value="">
+                    Ingen klass
+                </option>
+                {% for group in groups %}
+                    <option
+                        value="{{ group.id }}"
+                        {% if student.group_id == group.id %}
+                            selected
+                        {% endif %}>
+                        {{ group.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {# Team #}
+        <div class="mb-3">
+            <label
+                class="form-label"
+                for="studentTeams">
+                Grupper
+            </label>
+            <select
+                id="studentTeams"
+                name="team_ids"
+                class="form-select tomselect-filter"
+                multiple>
+                {% for team in teams %}
+                    <option
+                        value="{{ team.id }}"
+                        {% if team in student.teams %}
+                            selected
+                        {% endif %}>
+                        {{ team.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {# Inloggningskod #}
+        <div class="mb-3">
+            <label
+                class="form-label"
+                for="loginCode">
+                Inloggningskod
+            </label>
+            <input
+                class="form-control"
+                type="text"
+                id="loginCode"
+                name="login_code"
+                value="{{ student.login_code }}"
+                required>
+        </div>
+        {# Generera ny kod #}
+        <div class="mb-3">
             <div class="form-check form-switch">
-
                 <label
                     class="form-check-label"
-                    for="studentActive">
-                    Elev ej aktiv/aktiv
+                    for="newCodes">
+                    Generera ny inloggningskod
                 </label>
-
                 <input
                     class="form-check-input"
                     type="checkbox"
-                    id="studentActive"
-                    name="is_active"
-                    {% if student and student.is_active %}checked{% endif %}>
-
+                    id="newCodes"
+                    name="new_codes"
+                    value="1">
             </div>
-
         </div>
-
+        {# Status #}
+        <div class="mb-3">
+            <label
+                class="form-label"
+                for="studentStatus">
+                Status
+            </label>
+            <select
+                class="form-select"
+                id="studentStatus"
+                name="student_status">
+                <option value="" selected>
+                    Ingen ändring
+                </option>
+                <option value="active">
+                    Aktivera elev
+                </option>
+                <option value="archived">
+                    Arkivera elev
+                </option>
+            </select>
+        </div>
     </div>
-
-
     <div class="modal-footer">
-
         <button
             type="submit"
             class="btn btn-primary">
             Spara
         </button>
-
     </div>
-
 </form>

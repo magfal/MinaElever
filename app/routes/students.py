@@ -1,11 +1,10 @@
-from flask import Blueprint
-from flask import render_template, request, redirect, url_for, flash, jsonify, g, make_response, abort
+from flask import (Blueprint, abort, flash, g, jsonify, make_response, redirect, render_template, request, url_for)
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from app.models import Response, Student, Group, Team
+from app.services.auth import (generate_code, logout_everywhere, teacher_required)
 from app.services.htmx import toast
-from app.services.auth import logout_everywhere, generate_code, teacher_required
 
 students_bp = Blueprint(
     "students",
@@ -13,6 +12,85 @@ students_bp = Blueprint(
     url_prefix="/students"
 )
 
+# ---------------------------------------------------------
+# Hjälpfunktioner
+# ---------------------------------------------------------
+def get_teacher_groups():
+    """Hämtar grupper som läraren har tillgång till."""
+    return db.session.scalars(
+        select(Group)
+        .where(Group.teachers.any(id=g.user.id))
+        .order_by(Group.name)
+    ).all()
+
+def get_teacher_teams():
+    """Hämtar team som läraren själv har skapat."""
+    return db.session.scalars(
+        select(Team)
+        .where(Team.author_id == g.user.id)
+        .order_by(Team.name)
+    ).all()
+
+def get_selected_students(student_ids):
+    """Hämtar valda elever som läraren har tillgång till."""
+    if not all(student_id.isdigit() for student_id in student_ids):
+        abort(400)
+    valid_ids = {int(student_id) for student_id in student_ids}
+    if not valid_ids:
+        return []
+    students = db.session.scalars(
+        select(Student)
+        .where(
+            Student.id.in_(valid_ids),
+            Student.group.has(Group.teachers.any(id=g.user.id))
+        )
+        .order_by(Student.name)
+    ).all()
+    if len(students) != len(valid_ids):
+        abort(404)
+    return students
+
+def update_student_login_code(student, new_code):
+    """Byter inloggningskod och loggar ut elevens aktiva sessioner."""
+    if student.login_code != new_code:
+        student.login_code = new_code
+        logout_everywhere(student.id)
+
+def validate_group(group_id):
+    """Kontrollerar att gruppen tillhör en grupp läraren har tillgång till."""
+    if not group_id:
+        return None
+    group = db.session.scalar(
+        select(Group)
+        .where(
+            Group.id == group_id,
+            Group.teachers.any(id=g.user.id)
+        )
+    )
+    if group is None:
+        abort(404)
+    return group
+
+def validate_teams(team_ids):
+    """Hämtar endast team som läraren själv äger."""
+    valid_ids = {
+        int(team_id)
+        for team_id in team_ids
+        if team_id.isdigit()
+    }
+    if not valid_ids:
+        return []
+    return db.session.scalars(
+        select(Team)
+        .where(
+            Team.id.in_(valid_ids),
+            Team.author_id == g.user.id
+        )
+    ).all()
+
+# ---------------------------------------------------------
+# Elevlista
+# ---------------------------------------------------------
 @students_bp.get("/manage")
 @teacher_required
 def manage():
@@ -20,7 +98,11 @@ def manage():
     group_id = request.args.get("group_id", type=int)
     team_id = request.args.get("team_id", type=int)
     show_archived = request.args.get("archived") == "1"
-    query = select(Student)
+    query = (
+        select(Student)
+        .join(Student.group)
+        .where(Group.teachers.any(id=g.user.id))
+        )
     if show_archived:
         query = query.where(Student.is_active.is_(False))
     else:
@@ -30,26 +112,20 @@ def manage():
             Student.name.ilike(f"%{search}%")
         )
     if group_id:
-        query = query.where(
-            Student.group_id == group_id
-        )
+        query = query.where(Student.group_id == group_id)
     if team_id:
-        query = query.join(Student.teams).where(
-            Team.id == team_id
+        query = (
+            query
+            .join(Student.teams)
+            .where(Team.id == team_id)
         )
     students = db.session.scalars(
-        query.order_by(Student.name)
+        query
+        .distinct()
+        .order_by(Student.name)
     ).all()
-    groups = db.session.scalars(
-        select(Group)
-        .where(Group.teachers.any(id=g.user.id))
-        .order_by(Group.name)
-    ).all()
-    teams = db.session.scalars(
-        select(Team)
-        .where(Team.author_id == g.user.id)
-        .order_by(Team.name)
-    ).all()
+    groups = get_teacher_groups()
+    teams = get_teacher_teams()
     if request.headers.get("HX-Request"):
         return render_template(
             "students/_students_table.html",
@@ -65,6 +141,9 @@ def manage():
         archived=show_archived
     )
 
+# ---------------------------------------------------------
+# Generera inloggningskod
+# ---------------------------------------------------------
 @students_bp.get("/new_code")
 @teacher_required
 def generate_student_code_api():
@@ -72,578 +151,235 @@ def generate_student_code_api():
         "code": generate_code()
     })
 
-@students_bp.get("/add")
+# ---------------------------------------------------------
+# Lägg till elever
+# ---------------------------------------------------------
+@students_bp.route("/add", methods=["GET", "POST"])
 @teacher_required
 def add():
-    groups = db.session.scalars(
-        select(Group)
-        .where(Group.teachers.any(id=g.user.id))
-        .order_by(Group.name)
-    ).all()
-    
-    return render_template(
-        "/students/add.html",
-        groups=groups
-    )
-
-@students_bp.post("/add")
-@teacher_required
-def add_update():
+    if request.method == "GET":
+        return render_template(
+            "students/add.html",
+            groups=get_teacher_groups()
+        )
     student_list = request.form.get("student_list", "")
-    group_id = request.form.get("group_id")
+    group_id = request.form.get("group_id", type=int)
     if not student_list.strip():
         flash("Elevlistan var tom!", "error")
         return redirect(url_for("students.add"))
-    group = db.session.get(Group, group_id)
-    if not group:
+    group = validate_group(group_id)
+    if group is None:
         flash("Ingen giltig grupp vald.", "error")
         return redirect(url_for("students.add"))
     student_names = [
         name.strip()
-        for name in student_list.split("\n")
-        if name.strip()]
-    doubles = []
+        for name in student_list.splitlines()
+        if name.strip()
+    ]
     existing = {
         name
         for (name,) in db.session.execute(
             select(Student.name)
-            .where(Student.group_id == group_id))}
+            .where(Student.group_id == group.id)
+        )
+    }
+    added = 0
+    duplicates = []
     for name in student_names:
         if name in existing:
-            doubles.append(name)
+            duplicates.append(name)
             continue
         db.session.add(
             Student(
                 name=name,
                 login_code=generate_code(),
-                group_id=group_id,
+                group_id=group.id,
                 type="student",
                 is_active=True,
             )
         )
+        added += 1
+        existing.add(name)
     db.session.commit()
-    students_added = len(student_names) - len(doubles)
-    if students_added == 1:
-        sing_plur = "elev"
+    if added == 1:
+        message = f"Klass {group.name} utökades med 1 elev."
     else:
-        sing_plur = "elever"
-    message = f"Klass {group.name} utökades med {students_added} {sing_plur}."
+        message = f"Klass {group.name} utökades med {added} elever."
     status = "success"
-    if students_added < len(student_names):
-        message += f" {', '.join(doubles)} finns redan."
+    if duplicates:
+        message += f" {', '.join(duplicates)} finns redan."
         status = "warning"
     flash(message, status)
     return redirect(url_for("students.manage"))
-    
-@students_bp.get("/edit/<int:student_id>")
-@teacher_required
-def new_student_modal(student_id):
-    student = db.session.get(Student, student_id)
-    if student is None:
-        abort(404)
-    groups = db.session.scalars(
-        select(Group)
-        .where(Group.teachers.any(id=g.user.id))
-        .order_by(Group.name)
-        ).all()
-    teams = db.session.scalars(
-        select(Team)
-        .where(Team.author_id == g.user.id)
-        .order_by(Team.name)
-        ).all()
-    return render_template( 
-        "students/_student_form.html",
-        student=student,
-        groups=groups,
-        teams=teams,
-        action=url_for("students.update_student", student_id=student.id),
-        title="Ändra elev"
-    )
 
-@students_bp.post("/edit/<int:student_id>")
-@teacher_required
-def edit_student_modal(student_id):
-    student = db.session.get(Student, student_id)
-    if student is None:
-        abort(404)
-    team_value = request.form.get("team")
-    team_id = request.form.get("team_id", type=int)
-    action = request.form.get("action")
-    team = None
-    if team_id:
-        team = db.session.get(Team, team_id)
-    if team_value:
-        if team_value.isdigit():
-            team = db.session.get(Team, int(team_value))
-        else:
-            if "," in team_value:
-                name, description = team_value.split(",", 1)
-            else:
-                name, description = team_value.strip(), ""
-            team = db.session.scalar(
-                select(Team)
-                .where(
-                    Team.author_id == g.user.id,
-                    Team.name == team_value.strip()
-                )
-            )
-            if team is None:
-                team = Team(
-                    author_id=g.user.id,
-                    name=name,
-                    description=description
-                )
-                db.session.add(team)
-                db.session.flush()
-    if action in ["add_team", "remove_team"]:
-        if team is None:
-            abort(404)
-        if action == "add_team":
-            if team not in student.teams:
-                student.teams.append(team)
-        elif action == "remove_team":
-            if team in student.teams:
-                student.teams.remove(team)
-        db.session.commit()
-    elif action == "new_code":
-        student.login_code = generate_code()
-        db.session.commit()
-
-        return render_template(
-            "students/_login_code.html",
-            student=student
-        )
-    groups = db.session.scalars(
-        select(Group)
-        .where(Group.teachers.any(id=g.user.id))
-        .order_by(Group.name)
-    ).all()
-    teams = db.session.scalars(
-        select(Team)
-        .where(Team.author_id == g.user.id)
-        .order_by(Team.name)
-    ).all()
-    return render_template(
-        "students/_student_form.html",
-        student=student,
-        teams=teams,
-        groups=groups,
-        action=url_for("students.update_student", student_id=student.id),
-        title="Ändra elev"
-    )
-
-@students_bp.post("/update/<int:student_id>")
-@teacher_required
-def update_student(student_id):
-    name = request.form.get("name", "").strip()
-    group_id = request.form.get("group_id", type=int)
-    login_code = request.form.get("login_code")
-    is_active = request.form.get("is_active") is not None
-    team_ids = request.form.getlist("team_ids")
-
-    selected_teams = [
-        team
-        for team_id in team_ids
-        if team_id.isdigit()
-        and (team := db.session.get(Team, int(team_id))) is not None
-    ]
-
-    if not name or not login_code:
-        response = make_response("")
-        toast(response, "Fält får inte var tomt", "warning", reswap="none")
-        return response
-
-    student = db.session.get(Student, student_id)
-    if not student:
-        response = make_response("")
-        toast(response, f"Eleven finns inte i databasen.", "warning")
-        return response
-
-    old_login_code = student.login_code
-    old_is_active = student.is_active
-
-    student.name = name
-    student.group_id = group_id
-    student.login_code = login_code
-    student.is_active = is_active
-    student.teams = selected_teams
-
-    should_logout = (
-        old_login_code != login_code or
-        (old_is_active and not is_active)
-    )
-
-    if should_logout:
-        logout_everywhere(student.id)
-
-    try:
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        response = make_response("")
-        toast(response, f"IntegrityError.", "warning", reswap="none")
-        return response
-
-    flash(f"{name} har uppdaterats", "success")
-    response = make_response("", 204)
-    response.headers["HX-Redirect"] = url_for("students.manage")
-    return response
-
-
-@students_bp.get("/edit_students")
-@teacher_required
-def edit_students():
-    student_ids = request.args.getlist("students_ids")
-    students = db.session.scalars(
-        select(Student)
-        .where(Student.id.in_(student_ids))
-    ).all()
-    groups = db.session.scalars(
-        select(Group)
-        .where(Group.teachers.any(id=g.user.id))
-        .where(Group.is_active.is_(True))
-        .order_by(Group.name)
-    ).all()
-    teams = db.session.scalars(
-        select(Team)
-        .where(Team.author_id == g.user.id)
-        .order_by(Team.name)
-    ).all()
-    current_teams = sorted(
-        {team for student in students for team in student.teams},
-        key=lambda t: t.name)
-    return render_template(
-        "students/_students_form.html",
-        students=students,
-        groups=groups,
-        teams=teams,
-        current_teams=current_teams,
-        action=url_for("students.update_students")
-    )
-
-@students_bp.post("/edit_students")
-@teacher_required
-def edit_students_action():
-    action = request.form.get("action")
-    team_id = request.form.get("team_id", type=int)
-    team_value = request.form.get("team")
-    student_ids = request.form.getlist("student_ids")
-    students = db.session.scalars(
-        select(Student)
-        .where(Student.id.in_(student_ids))
-    ).all()
-    team = None
-    if team_id:
-        team = db.session.get(Team, team_id)
-    if team_value:
-        if team_value.isdigit():
-            team = db.session.get(Team, int(team_value))
-        else:
-            if "," in team_value:
-                name, description = team_value.split(",", 1)
-            else:
-                name, description = team_value.strip(), ""
-            team = db.session.scalar(
-                select(Team)
-                .where(
-                    Team.author_id == g.user.id,
-                    Team.name == team_value.strip()
-                )
-            )
-            if team is None:
-                team = Team(
-                    author_id=g.user.id,
-                    name=name,
-                    description=description
-                )
-                db.session.add(team)
-                db.session.flush()
-    if action in ["add_team", "remove_team"]:
-        if team is None:
-            abort(404)
-        for student in students:
-            if action == "add_team":
-                if team not in student.teams:
-                    student.teams.append(team)
-            elif action == "remove_team":
-                if team in student.teams:
-                    student.teams.remove(team)
-        db.session.commit()
-        current_team_ids = set()
-        for student in students:
-            for team in student.teams:
-                current_team_ids.add(team.id)
-        current_teams = db.session.scalars(
-            select(Team)
-            .where(Team.id.in_(current_team_ids))
-            .order_by(Team.name)
-        ).all() if current_team_ids else []
-
-        groups = db.session.scalars(
-            select(Group)
-            .where(Group.teachers.any(id=g.user.id))
-            .order_by(Group.name)
-        ).all()
-
-        teams = db.session.scalars(
-            select(Team)
-            .where(Team.author_id == g.user.id)
-            .order_by(Team.name)
-        ).all()
-        return render_template(
-            "students/_students_form.html",
-            students=students,
-            groups=groups,
-            teams=teams,
-            current_teams=current_teams,
-            action=url_for("students.update_students")
-        )
-
-
-@students_bp.post("/update_students")
-@teacher_required
-def update_students():
-    student_ids = request.form.getlist("student_ids")
-    students = db.session.scalars(
-        select(Student)
-        .where(Student.id.in_(student_ids))
-    ).all()
-    if not students:
-        response = make_response("")
-        toast(response,"Inga elever valda.", "warning", reswap="none")
-        return response
-    group_id = request.form.get("group_id", type=int)  
-    new_code = (request.form.get("new_code") is not None)
-    active_action = request.form.get("active_action")
-    try:
-        for student in students:
-            old_login_code = student.login_code
-            old_is_active = student.is_active
-            if group_id:
-                student.group_id = group_id
-            if new_code:
-                student.login_code = generate_code()
-            if active_action == "activate":
-                student.is_active = True
-            elif active_action == "deactivate":
-                student.is_active = False
-            should_logout = (old_login_code != student.login_code
-                             or (old_is_active and not student.is_active))
-            if should_logout:
-                logout_everywhere(student.id)
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        response = make_response("")
-        toast(response, "Ett fel uppstod när eleverna skulle uppdateras.", "warning",reswap="none")
-        return response
-    response = make_response("", 204)
-    response.headers["HX-Redirect"] = url_for("students.manage")
-    return response
-
-
-@students_bp.route("/create_response", methods=["POST"])
-@teacher_required
-def create_admin_response():
-    student_ids = request.form.getlist("student_ids")
-    response_type = request.form.get("type")
-    if not student_ids:
-        flash("Du måste välja minst en elev", "warning")
-        return redirect(url_for("students.manage"))
-    students = (
-        db.session.scalars(
-            select(Student)
-            .where(Student.id.in_(student_ids))
-            .order_by(Student.name)
-            ).all()
-        )
-    return render_template(
-        "/admin/create_response.html",
-        students=students,
-        response_type=response_type
-    )
-
-@students_bp.route("/timeline/<int:student_id>")
-@teacher_required
-def student_timeline(student_id):
-    student = db.session.get(Student, student_id)
-    if student is None:
-        abort(404)
-    responses = db.session.scalars(
-        select(Response).
-        where(Response.student_id == student_id).
-        order_by(Response.submitted_at.desc())
-        ).all()
-    return render_template(
-        "students/timeline.html",
-        student=student,
-        responses=responses
-        )
-
+# ---------------------------------------------------------
+# Redigera en eller flera elever – gemensam formulärroute
+# ---------------------------------------------------------
 @students_bp.route("/edit-students", methods=["GET", "POST"])
 @teacher_required
 def edit_students_modal():
-    print("EDIT STUDENTS MODAL")
-    print("ARGS:", request.args)
-
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
     # Hämta valda elever
-    # ---------------------------------------------------------
-    if request.method == "POST":
-        student_ids = request.form.getlist("student_ids")
-    else:
+    # -----------------------------------------------------
+    if request.method == "GET":
         student_ids = request.args.getlist("student_ids")
-    students = [
-        student
-        for student_id in student_ids
-        if student_id.isdigit()
-        and (
-            student := db.session.get(
-                Student,
-                int(student_id)
-            )
-        ) is not None
-    ]
+    else:
+        student_ids = request.form.getlist("student_ids")
+    students = get_selected_students(student_ids)
     if not students:
         abort(400)
-    # ---------------------------------------------------------
-    # GET – visa formuläret
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
+    # GET – visa rätt formulär
+    # -----------------------------------------------------
     if request.method == "GET":
-        # Grupper som alla valda elever har gemensamt
+        if len(students) == 1:
+            return render_template(
+                "students/_student_form.html",
+                student=students[0],
+                groups=get_teacher_groups(),
+                teams=get_teacher_teams(),
+                action=url_for("students.edit_students_modal"),
+                title="Ändra elev"
+            )
         common_teams = set(students[0].teams)
         for student in students[1:]:
-            common_teams &= set(student.teams)
+            common_teams.intersection_update(student.teams)
         common_teams = sorted(
             common_teams,
             key=lambda team: team.name.lower()
         )
-        groups = db.session.scalars(
-            select(Group)
-            .where(Group.teachers.any(id=g.user.id))
-            .order_by(Group.name)
-        ).all()
-        teams = db.session.scalars(
-            select(Team)
-            .where(Team.author_id == g.user.id)
-            .order_by(Team.name)
-        ).all()
-
         return render_template(
             "students/_students_form.html",
             students=students,
-            groups=groups,
-            teams=teams,
+            groups=get_teacher_groups(),
+            teams=get_teacher_teams(),
             common_teams=common_teams,
-            action=url_for(
-                "students.edit_students_modal"
-            )
+            action=url_for("students.edit_students_modal")
         )
-
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
     # POST – spara ändringar
-    # ---------------------------------------------------------
-
-    # Klass
-    group_id = request.form.get("group_id", type=int)
-
-    if group_id:
-        group = db.session.get(Group, group_id)
-
-        if group is None:
-            abort(404)
-
-        for student in students:
-            student.group_id = group.id
-
-    # ---------------------------------------------------------
-    # Grupper
-    # ---------------------------------------------------------
-
-    # De grupper som var gemensamma när formuläret öppnades
-    original_team_ids = {
-        int(team_id)
-        for team_id in request.form.getlist("original_team_ids")
-        if team_id.isdigit()
-    }
-
-    # De grupper som fortfarande är valda när Spara klickas
-    selected_team_ids = {
-        int(team_id)
-        for team_id in request.form.getlist("team_ids")
-        if team_id.isdigit()
-    }
-
-    # Gemensamma grupper som användaren tagit bort
-    removed_team_ids = (
-        original_team_ids - selected_team_ids
-    )
-
-    # Nya grupper som användaren lagt till
-    added_team_ids = (
-        selected_team_ids - original_team_ids
-    )
-
-    # Ta bort endast grupper som ursprungligen var
-    # gemensamma för alla valda elever
-    for team_id in removed_team_ids:
-
-        team = db.session.get(Team, team_id)
-
-        if team is None:
-            continue
-
-        for student in students:
-            if team in student.teams:
-                student.teams.remove(team)
-
-    # Lägg till nya grupper hos alla valda elever
-    for team_id in added_team_ids:
-
-        team = db.session.get(Team, team_id)
-
-        if team is None:
-            continue
-
-        for student in students:
-            if team not in student.teams:
-                student.teams.append(team)
-
-    # ---------------------------------------------------------
-    # Nya login-koder
-    # ---------------------------------------------------------
-
-    if request.form.get("new_codes"):
-
-        for student in students:
-            student.login_code = generate_code()
-
-    # ---------------------------------------------------------
-    # Aktiv / ej aktiv
-    #
-    # Endast ändring om checkboxen uttryckligen skickats.
-    # ---------------------------------------------------------
-
-    if request.form.get("is_active"):
-
-        for student in students:
-            student.is_active = True
-
-    elif request.form.get("archive"):
-
-        for student in students:
-            student.is_active = False
-
-    # ---------------------------------------------------------
-    # Spara
-    # ---------------------------------------------------------
-
+    # -----------------------------------------------------
+    single_student = len(students) == 1
     try:
-        db.session.commit()
+        # -------------------------------------------------
+        # Namn – endast vid redigering av en elev
+        # -------------------------------------------------
+        if single_student and "name" in request.form:
+            name = request.form.get("name", "").strip()
+            if not name:
+                response = make_response("")
+                toast(
+                    response,
+                    "Elevens namn får inte vara tomt.",
+                    "warning",
+                    reswap="none"
+                )
+                return response
+            students[0].name = name
+        # -------------------------------------------------
+        # Klass
+        # -------------------------------------------------
+        group_id = request.form.get("group_id", type=int)
+        if group_id:
+            group = validate_group(group_id)
 
+            for student in students:
+                student.group_id = group.id
+        # -------------------------------------------------
+        # Team
+        # -------------------------------------------------
+        selected_teams = validate_teams(
+            request.form.getlist("team_ids")
+        )
+        if single_student:
+            # För en elev ersätts hela teamlistan.
+            student = students[0]
+            selected_team_ids = {team.id for team in selected_teams}
+
+            for team in list(student.teams):
+                if team.author_id == g.user.id and team.id not in selected_team_ids:
+                    student.teams.remove(team)
+
+            for team in selected_teams:
+                if team not in student.teams:
+                    student.teams.append(team)
+        else:
+            # För flera elever ändras endast skillnaden
+            # mellan gemensamma team före och efter redigering.
+            original_team_ids = {
+                int(team_id)
+                for team_id in request.form.getlist("original_team_ids")
+                if team_id.isdigit()
+            }
+            selected_team_ids = {
+                team.id
+                for team in selected_teams
+            }
+            removed_team_ids = (
+                original_team_ids - selected_team_ids
+            )
+            added_team_ids = (
+                selected_team_ids - original_team_ids
+            )
+            teams_by_id = {
+                team.id: team
+                for team in selected_teams
+            }
+            for team_id in removed_team_ids:
+                team = db.session.scalar(
+                    select(Team)
+                    .where(
+                        Team.id == team_id,
+                        Team.author_id == g.user.id
+                    )
+                )
+                if team is None:
+                    continue
+                for student in students:
+                    if team in student.teams:
+                        student.teams.remove(team)
+            for team_id in added_team_ids:
+                team = teams_by_id.get(team_id)
+                if team is None:
+                    continue
+                for student in students:
+                    if team not in student.teams:
+                        student.teams.append(team)
+        # -------------------------------------------------
+        # Inloggningskoder
+        # -------------------------------------------------
+        if request.form.get("new_codes"):
+            for student in students:
+                update_student_login_code(
+                    student,
+                    generate_code()
+                )
+        elif single_student:
+            # En elev kan även få en manuellt angiven kod.
+            login_code = request.form.get("login_code","").strip()
+            if login_code:
+                update_student_login_code(
+                    students[0],
+                    login_code
+                )
+        # -------------------------------------------------
+        # Aktiv / arkiverad
+        # -------------------------------------------------
+        student_status = request.form.get("student_status")
+        if student_status == "active":
+            for student in students:
+                student.is_active = True
+        elif student_status == "archived":
+            for student in students:
+                if student.is_active:
+                    student.is_active = False
+                    logout_everywhere(student.id)
+        # -------------------------------------------------
+        # Spara
+        # -------------------------------------------------
+        db.session.commit()
     except IntegrityError:
         db.session.rollback()
-
         response = make_response("")
         toast(
             response,
@@ -652,15 +388,55 @@ def edit_students_modal():
             reswap="none"
         )
         return response
-
-    flash(
-        f"{len(students)} elever har uppdaterats",
-        "success"
-    )
-
+    if single_student:
+        message = f"{students[0].name} har uppdaterats."
+    else:
+        message = f"{len(students)} elever har uppdaterats."
+    flash(message, "success")
     response = make_response("", 204)
-    response.headers["HX-Redirect"] = url_for(
-        "students.manage"
+    response.headers["HX-Redirect"] = url_for("students.manage")
+    return response
+
+# ---------------------------------------------------------
+# Skapa administrativt elevsvar
+# ---------------------------------------------------------
+@students_bp.post("/create_response")
+@teacher_required
+def create_admin_response():
+    student_ids = request.form.getlist("student_ids")
+    response_type = request.form.get("type")
+    if not student_ids:
+        flash("Du måste välja minst en elev", "warning")
+        return redirect(url_for("students.manage"))
+    students = get_selected_students(student_ids)
+    return render_template(
+        "admin/create_response.html",
+        students=students,
+        response_type=response_type
     )
 
-    return response
+# ---------------------------------------------------------
+# Elevens tidslinje
+# ---------------------------------------------------------
+@students_bp.get("/timeline/<int:student_id>")
+@teacher_required
+def student_timeline(student_id):
+    student = db.session.scalar(
+        select(Student)
+        .where(
+            Student.id == student_id,
+            Student.group.has(Group.teachers.any(id=g.user.id))
+        )
+    )
+    if student is None:
+        abort(404)
+    responses = db.session.scalars(
+        select(Response)
+        .where(Response.student_id == student_id)
+        .order_by(Response.submitted_at.desc())
+    ).all()
+    return render_template(
+        "students/timeline.html",
+        student=student,
+        responses=responses
+    )

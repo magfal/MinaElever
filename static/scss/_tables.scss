@@ -50,3 +50,14 @@
 .archive-switch {
     transform: scale(1.25);
 }
+
+.selection-checkbox {
+    accent-color: #187513;
+    width: 0.85rem;
+    height: 0.85rem;
+    cursor: pointer;
+}
+
+select.tomselect-filter:not(.tomselected) {
+    visibility: hidden;
+}

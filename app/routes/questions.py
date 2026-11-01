@@ -235,12 +235,56 @@ def populate_question_answer(question):
 @teacher_required
 def manage():
     search = request.args.get("search", "").strip()
-    tag_id = request.args.get("tag_id", type=int)
     tag_type_name = request.args.get("tag_type", "").strip()
     question_type_name = request.args.get("question_type", "").strip()
     date_from = request.args.get("date_from", "").strip()
     date_to = request.args.get("date_to", "").strip()
     media_id = request.args.get("media_id", type=int)
+    tag_ids = request.args.getlist("tag_ids", type=int)
+
+    page_mode = request.args.get("page_mode", "questions")
+    template_id = request.args.get("template_id", type=int)
+
+    # Hämta mall om vi befinner oss i redigeringsläge.
+    template = None
+
+    if page_mode == "template_edit":
+        template = db.session.get(Template, template_id)
+
+        if template is None:
+            abort(404)
+
+    elif page_mode not in ("questions", "template_new"):
+        abort(400)
+
+    # Bestäm aktuellt frågeurval.
+    selection_submitted = (
+        request.args.get("selection_submitted") == "1"
+    )
+
+    if selection_submitted:
+        selected_question_ids = set(
+            request.args.getlist(
+                "selected_question_ids",
+                type=int,
+            )
+        )
+    elif page_mode == "template_edit":
+        selected_question_ids = {
+            link.question_id
+            for link in template.question_links
+        }
+    else:
+        selected_question_ids = set(
+            request.args.getlist(
+                "selected_question_ids",
+                type=int,
+            )
+        )
+
+    selected_tag_ids = [str(tag_id) for tag_id in tag_ids]
+
+    # Grundfråga med relationer.
     query = (
         select(Question)
         .options(
@@ -249,57 +293,69 @@ def manage():
             .selectinload(Template.assignments),
         )
     )
+
+    # Filter.
     if media_id:
         query = query.where(
             Question.media.any(Media.id == media_id)
         )
-    if tag_id:
+
+    for tag_id in tag_ids:
         query = query.where(
             Question.tags.any(Tag.id == tag_id)
         )
+
     if tag_type_name:
         try:
             tag_type = TagType[tag_type_name]
         except KeyError:
             tag_type = None
+
         if tag_type:
             query = query.where(
                 Question.tags.any(Tag.tag_type == tag_type)
             )
+
     if question_type_name:
         try:
             question_type = QuestionType[question_type_name]
         except KeyError:
             question_type = None
+
         if question_type:
             query = query.where(
                 Question.question_type == question_type
             )
+
     if date_from:
         try:
             date_from = date.fromisoformat(date_from)
         except ValueError:
             date_from = None
+
     if date_from:
         query = query.where(
             Question.created_at >= date_from
         )
+
     if date_to:
         try:
             date_to = date.fromisoformat(date_to)
         except ValueError:
             date_to = None
+
     if date_to:
         query = query.where(
-                Question.created_at
-                < date_to + timedelta(days=1)
-            )
+            Question.created_at < date_to + timedelta(days=1)
+        )
+
     if search:
         terms = [
             term.strip()
             for term in search.split()
             if len(term.strip()) >= 2
-            ]
+        ]
+
         if terms:
             score = sum(
                 case(
@@ -308,6 +364,7 @@ def manage():
                 )
                 for term in terms
             )
+
             query = (
                 query
                 .where(score > 0)
@@ -317,25 +374,54 @@ def manage():
         else:
             query = query.limit(100)
     else:
-        query = query.order_by(Question.created_at.desc()).limit(100)   
-    questions = db.session.scalars(query).all()
+        query = (
+            query
+            .order_by(Question.created_at.desc())
+            .limit(100)
+        )
+
+    # Valda frågor hämtas oberoende av filtren.
+    selected_questions = db.session.scalars(
+        select(Question)
+        .where(Question.id.in_(selected_question_ids))
+        .order_by(Question.created_at.desc())
+    ).all() if selected_question_ids else []
+
+    # Tillgängliga frågor påverkas av filtren.
+    available_questions = db.session.scalars(
+        query.where(
+            ~Question.id.in_(selected_question_ids)
+        )
+    ).all()
+
+    # HTMX: returnera endast frågetabellerna.
     if request.headers.get("HX-Request"):
         return render_template(
-            "questions/_questions_table.html",
-            questions=questions,
+            "questions/_questions_selection.html",
+            page_mode=page_mode,
+            template=template,
+            selected_questions=selected_questions,
+            available_questions=available_questions,
+            selected_question_ids=selected_question_ids,
             question_action=question_action,
         )
+
+    # Vanlig sidladdning.
     question_types, tag_types, tags = get_question_form_data()
-    tag_types = list(TagType)
     today = utc_now().strftime("%Y-%m-%d")
+
     return render_template(
         "questions/manage.html",
-        questions=questions,
+        page_mode=page_mode,
+        template=template,
+        selected_questions=selected_questions,
+        available_questions=available_questions,
+        selected_question_ids=selected_question_ids,
         tags=tags,
         tag_types=tag_types,
         question_types=question_types,
         today=today,
-        tag_id=tag_id,
+        selected_tag_ids=selected_tag_ids,
         tag_type_name=tag_type_name,
         question_type_name=question_type_name,
         date_from=date_from,

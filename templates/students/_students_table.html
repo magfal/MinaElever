@@ -3,10 +3,13 @@
     <table class="table table-hover mb-0 sticky-table">
         <thead>
             <tr>
-                <th>
-                    <input 
-                        type="checkbox" 
-                        id="selectAll">
+                <th class="text-center">
+                    <input
+                        class="selection-checkbox"
+                        type="checkbox"
+                        :checked="allVisibleSelected"
+                        :indeterminate="someVisibleSelected"
+                        @change="toggleVisible($event.target.checked)">
                 </th>
                 <th class="sortable i">
                     Namn
@@ -45,7 +48,8 @@
                         hx-get="{{ url_for('students.edit_students_modal') }}"
                         hx-target="#studentModalContent"
                         hx-swap="innerHTML"
-                        hx-include=".student-checkbox:checked"
+                        hx-include=".selection-checkbox:checked"
+                        hx-vals='{"debug": "test"}'
                         data-bs-toggle="modal"
                         data-bs-target="#studentModal">
                         Ändra
@@ -56,13 +60,17 @@
         <tbody>
         {% if students %}
             {% for student in students %}
-                <tr data-name="{{student.name.lower()}}" data-group="{{student.group_id}}">
-                    <td>
+                <tr
+                    data-selectable-row
+                    data-search="{{ student.name.lower() }}">
+                    <td class="text-center">
                         <input
-                            class="student-checkbox"
+                            class="selection-checkbox"
                             type="checkbox"
                             name="student_ids"
                             value="{{ student.id }}"
+                            :checked="selectedIds.includes('{{ student.id }}')"
+                            @change="toggleOne('{{ student.id }}', $event.target.checked)"
                             {% if student.id in selected_student_ids %}checked{% endif %}>
                     </td>
                     <td>{{student.name}}</td>
@@ -102,7 +110,7 @@
                     <td class="text-end">
                         <button
                             class="btn btn-sm btn-outline-primary"
-                            hx-get="{{ url_for('students.edit_student_modal', student_id=student.id) }}"
+                            hx-get="{{ url_for('students.edit_students_modal', student_ids=student.id) }}"
                             hx-target="#studentModalContent"
                             hx-swap="innerHTML"
                             data-bs-toggle="modal"

@@ -99,12 +99,10 @@
                     Taggar
                 </h5>
             </div>
-
             <div class="card-body">
                     <div
                         id="questionTagBadges"
                         class="question-tag-badges mb-3">
-
                         {% if question %}
                             {% for tag in question.tags %}
                                 <span
@@ -121,24 +119,18 @@
                                         text-bg-light
                                     {% endif %}"
                                     data-tag-id="{{ tag.id }}">
-
                                     {{ tag.name }}
-
                                     <button
                                         type="button"
                                         class="btn-close btn-close-white ms-1 question-tag-remove"
                                         aria-label="Ta bort taggen {{ tag.name }}"
                                         data-tag-id="{{ tag.id }}">
                                     </button>
-
                                 </span>
                             {% endfor %}
                         {% endif %}
                     </div>
-
-
                 <div class="input-group">
-
                     <select
                         id="questionTags"
                         name="tag_ids"

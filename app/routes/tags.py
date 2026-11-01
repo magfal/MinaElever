@@ -240,9 +240,7 @@ def delete_tag(tag_id):
 @tags_bp.get("/create_media_tag")
 @teacher_required
 def create_media_tag_modal():
-
     name = request.args.get("name", "").strip()
-
     return render_template(
         "tags/_media_tag_new_form.html",
         name=name,
@@ -252,11 +250,8 @@ def create_media_tag_modal():
 @tags_bp.post("/create_media_tag")
 @teacher_required
 def create_media_tag():
-
     name = request.form.get("name", "").strip()
-    description = request.form.get("description", "").strip()
     tag_type_name = request.form.get("tag_type", "").strip()
-
     if not name:
         response = make_response("")
         toast(
@@ -266,7 +261,6 @@ def create_media_tag():
             reswap="none",
         )
         return response
-
     try:
         tag_type = TagType[tag_type_name]
     except KeyError:
@@ -278,11 +272,9 @@ def create_media_tag():
             reswap="none",
         )
         return response
-
     existing = db.session.scalar(
         select(Tag).where(Tag.name == name)
     )
-
     if existing is not None:
         response = make_response("")
         toast(
@@ -292,16 +284,12 @@ def create_media_tag():
             reswap="none",
         )
         return response
-
     tag = Tag(
         name=name,
-        description=description,
         tag_type=tag_type,
     )
-
     db.session.add(tag)
     db.session.commit()
-
     response = make_response("")
     response.headers["HX-Trigger"] = json.dumps({
         "media-tag-created": {
@@ -310,15 +298,12 @@ def create_media_tag():
             "tag_type": tag.tag_type.name,
         }
     })
-
     return response
 
 @tags_bp.get("/create_question_tag")
 @teacher_required
 def create_question_tag_modal():
-
     name = request.args.get("name", "").strip()
-
     return render_template(
         "tags/_question_tag_new_form.html",
         name=name,
@@ -328,11 +313,8 @@ def create_question_tag_modal():
 @tags_bp.post("/create_question_tag")
 @teacher_required
 def create_question_tag():
-
     name = request.form.get("name", "").strip()
-    description = request.form.get("description", "").strip()
     tag_type_name = request.form.get("tag_type", "").strip()
-
     if not name:
         response = make_response("")
         toast(
@@ -342,7 +324,6 @@ def create_question_tag():
             reswap="none",
         )
         return response
-
     try:
         tag_type = TagType[tag_type_name]
     except KeyError:
@@ -354,11 +335,9 @@ def create_question_tag():
             reswap="none",
         )
         return response
-
     existing = db.session.scalar(
         select(Tag).where(Tag.name == name)
     )
-
     if existing is not None:
         response = make_response("")
         toast(
@@ -368,16 +347,12 @@ def create_question_tag():
             reswap="none",
         )
         return response
-
     tag = Tag(
         name=name,
-        description=description,
         tag_type=tag_type,
     )
-
     db.session.add(tag)
     db.session.commit()
-
     response = make_response("")
     response.headers["HX-Trigger"] = json.dumps({
         "question-tag-created": {
@@ -386,5 +361,4 @@ def create_question_tag():
             "tag_type": tag.tag_type.name,
         }
     })
-
     return response

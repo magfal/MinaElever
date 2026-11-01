@@ -1,9 +1,16 @@
-När appen utveckla måstwe sass köras: 
+När appen utvecklas måste sass köras: 
 sass --watch static/scss:static/css --load-path=node_modules/bootstrap/scss --quiet-deps
 
+För att installera en sqlite db körs:
+flask create-db
 
+Appen startas med:
+python run.py
 
-Då skulle exempelvis detta kunna bli kvar:
+För att öppna den globala settings.json:
+Tryck Ctrl+Shift+P.
+Skriv
+Preferences: Open User Settings (JSON)
 
 
 HTML/Jinja beskriver UI:t. Alpine håller lokalt UI-state. HTMX pratar med Flask. Flask håller applikationslogiken. Vanlig JS används främst för bibliotek som TomSelect, MathJax och Bootstrap.
@@ -41,6 +48,7 @@ uppgifter
 rättning/återkoppling
 statistik/XP
 Spelregler
+
 Gå tillbaka och snygga till UI:t med Alpine
 lokal state
 visa/dölj
@@ -135,17 +143,6 @@ När det är klart kan vi implementera det direkt mot det du redan har.
 Så ja: du är närmare slutet än vad mängden småproblem just nu får det att kännas som. Men det är dags att byta arbetsläge från "förbättra arkitekturen" till "slutför produkten".
 
 
-För att installera en sqlite db körs:
-flask create-db
-
-Appen startas med:
-python run.py
-
-För att öppna den globala settings.json:
-Tryck Ctrl+Shift+P.
-Skriv
-Preferences: Open User Settings (JSON)
-
 app/
 │
 ├── __init__.py
@@ -234,4 +231,40 @@ Du har förbättrat:
 
 Öva mer:
 △ Geometri
+
+
+
+FRAMTIDA CSS-STÄDNING
+
+1. Kartlägga vad som faktiskt finns
+Gå igenom:
+- Bootstrap-regler och vilka delar av Bootstrap du använder.
+- Egna regler i style.scss och delfilerna.
+- TomSelects CSS och eventuella anpassningar.
+- Regler som överlappar eller skriver över varandra.
+- Regler som inte längre används.
+2. Tydliggöra ansvarsfördelningen
+Exempelvis:
+Fil	Ansvar
+_variables.scss	Egna färger, avstånd och designvariabler
+_layout.scss	Sidstruktur, navigering och övergripande layout
+_forms.scss	Formulär och inmatningsfält
+_tables.scss	Tabeller
+_autocomplete.scss	TomSelect och autocomplete
+_print.scss	Utskriftsformat
+
+Jag skulle också överväga en separat _components.scss för återanvändbara komponenter i Spåren.
+3. Leta efter tekniska problem
+Särskilt intressant är:
+- Selektorer som träffar fler element än avsett.
+- Onödigt hög specificitet och många !important.
+- Regler som konkurrerar med Bootstrap eller TomSelect.
+- Tillstånd som bara fungerar efter JavaScript-initiering.
+- Dubblerade regler och gamla lösningar som blivit kvar.
+4. Städa stegvis
+Jag vill inte rekommendera en stor omskrivning. Vi bör först förstå vad som finns och sedan göra små, verifierbara ändringar. Behålla Bootstrap och dess versionsnivå, inte handredigera leverantörernas CSS och kontrollera att varje steg fungerar i appen.
+
+Mitt förslag: När vi gör detta börjar vi med hela style.scss och samtliga egna SCSS-filer. Sedan kan vi följa importkedjan och vid behov jämföra med den kompilerade style.css.
+
+Ladda gärna upp hela static/scss-mappen som en zip när du vill göra genomgången. Då kan vi granska strukturen som helhet i stället för att försöka lösa isolerade CSS-problem ett i taget. 
 

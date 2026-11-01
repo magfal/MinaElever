@@ -55,12 +55,18 @@
                 name="tag_ids"
                 class="form-select tomselect-filter"
                 multiple>
-                {% for tag in tags %}
-                    <option
-                        value="{{ tag.id }}"
-                        {% if tag.id in selected_tag_ids %}selected{% endif %}>
-                        {{ tag.name }}
-                    </option>
+                {% for tag_type in tag_types %}
+                    <optgroup label="{{ tag_type.value }}">
+                        {% for tag in tags if tag.tag_type == tag_type %}
+                            <option
+                                value="{{ tag.id }}"
+                                {% if tag.id|string in selected_tag_ids %}
+                                    selected
+                                {% endif %}>
+                                {{ tag.name }}
+                            </option>
+                        {% endfor %}
+                    </optgroup>
                 {% endfor %}
             </select>
         </div>
@@ -140,38 +146,29 @@
                         <label for="mediaTags" class="form-label">
                             Taggar
                         </label>
-
                         <div
                             id="mediaTagBadges"
                             class="media-tag-badges mb-3">
                         </div>
-
                         <div class="input-group">
                             <select
                                 id="mediaTags"
                                 name="tag_ids"
                                 class="form-select tomselect-filter"
                                 multiple>
-
                                 {% for tag_type in tag_types %}
                                     <optgroup label="{{ tag_type.value }}">
-
                                         {% for tag in tags
                                             if tag.tag_type == tag_type %}
-
                                             <option
                                                 value="{{ tag.id }}"
                                                 data-tag-type="{{ tag.tag_type.name }}">
                                                 {{ tag.name }}
                                             </option>
-
                                         {% endfor %}
-
                                     </optgroup>
                                 {% endfor %}
-
                             </select>
-
                             <button
                                 type="button"
                                 class="btn btn-outline-secondary"
